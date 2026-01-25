@@ -132,6 +132,10 @@ public:
         return matrixScalarMultiply(scalar);
     }
 
+    Matrix operator*(const Matrix& other) const {
+        return matrixMultiply(other);
+    }
+
     friend Matrix operator*(double scalar, const Matrix& m) {
         return m.matrixScalarMultiply(scalar);
     }
