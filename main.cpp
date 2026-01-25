@@ -119,7 +119,6 @@ public:
         return result;
     }
 
-    // Operator overloads for cleaner syntax
     Matrix operator+(const Matrix& other) const {
         return matrixAdd(other);
     }
@@ -186,7 +185,7 @@ void gradientDescentMatricesOnly(const Matrix& x, const Matrix& y,
 {
     int numSamples = y.getNumRows();
     double prevLoss = std::numeric_limits<double>::infinity();
-    const double threshold = 1e-6; // common-sense convergence threshold
+    const double threshold = 1e-6;
     Matrix weights(2, 1);
     weights(0,0) = 0.0;
     weights(1,0) = 0.0; // weights(0,0) = slope, weights(1,0) = intercept
@@ -229,7 +228,7 @@ void gradientDescentVectorized(const Matrix& x, const Matrix& y,
     Matrix weights(2, 1);
     weights(0,0) = slope;
     weights(1,0) = intercept;
-    const double threshold = 1e-6; // common-sense convergence threshold
+    const double threshold = 1e-6;
     for (int iter = 0; iter < maxIterations; ++iter) {
         Matrix predictions = x * weights;
         Matrix errors = predictions - y;
