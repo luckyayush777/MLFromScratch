@@ -127,16 +127,180 @@ Matrix relu(const Matrix& z)
     return output;
 }
 
-void forwardPropagation(const Matrix& x, const Matrix& weights,
-                        Matrix& output)
+void forwardPropagation(
+    const Matrix& X,
+    const Matrix& W1,
+    const Matrix& W2,
+    Matrix& Z1,
+    Matrix& A1,
+    Matrix& A2)
 {
-    output = relu(x * weights);
+    Z1 = X * W1;
+    A1 = relu(Z1);
+    A2 = A1 * W2;
+    std::cout << "Forward pass complete\n";
 }
 
 
+Matrix reluBackward(const Matrix& dA, const Matrix& Z)
+{
+    Matrix dZ(Z.getNumRows(), Z.getNumCols());
+
+    for (int i = 0; i < Z.getNumRows(); ++i) {
+        for (int j = 0; j < Z.getNumCols(); ++j) {
+            dZ(i, j) = (Z(i, j) > 0.0) ? dA(i, j) : 0.0;
+        }
+    }
+    return dZ;
+}
+
+Matrix mseBackward(const Matrix& predictions,
+                   const Matrix& targets)
+{
+    int m = predictions.getNumRows();
+    Matrix dA(predictions.getNumRows(), predictions.getNumCols());
+
+    for (int i = 0; i < predictions.getNumRows(); ++i) {
+        for (int j = 0; j < predictions.getNumCols(); ++j) {
+            dA(i, j) = (2.0 / m) * (predictions(i, j) - targets(i, j));
+        }
+    }
+    return dA;
+}
+
+void sgdUpdate(Matrix& W, const Matrix& dW, double lr)
+{
+    for (int i = 0; i < W.getNumRows(); ++i) {
+        for (int j = 0; j < W.getNumCols(); ++j) {
+            W(i, j) -= lr * dW(i, j);
+        }
+    }
+}
+
+double computeMSE(const Matrix& predictions, const Matrix& targets)
+{
+    int m = predictions.getNumRows();
+    double mse = 0.0;
+    for (int i = 0; i < m; ++i) {
+        for (int j = 0; j < predictions.getNumCols(); ++j) {
+            double error = predictions(i, j) - targets(i, j);
+            mse += error * error;
+        }
+    }
+    return mse / m;
+}
+
+void backwardPropagation(
+    const Matrix& X,
+    const Matrix& Y,
+    Matrix& W1,
+    Matrix& W2,
+    const Matrix& Z1,
+    const Matrix& A1,
+    const Matrix& A2,
+    double learningRate,
+    Matrix& dW1,
+    Matrix& dW2)
+{
+    // dL/dA2
+    Matrix dA2 = mseBackward(A2, Y);
+
+    // dL/dW2 = A1^T * dA2
+    dW2 = A1.transpose() * dA2;
+
+    // dL/dA1 = dA2 * W2^T
+    Matrix dA1 = dA2 * W2.transpose();
+
+
+    Matrix dZ1 = reluBackward(dA1, Z1);
+
+    // dL/dW1 = X^T * dZ1
+    dW1 = X.transpose() * dZ1;
+
+    sgdUpdate(W1, dW1, learningRate);
+    sgdUpdate(W2, dW2, learningRate);
+    std::cout << "Backward pass complete\n";
+}
+
+// Problem 1: Simple 2x2x1 network
+void problem1()
+{
+    std::cout << "\nPROBLEM 1\n";
+    
+    Matrix X(2, 2);
+    X(0, 0) = 1.0; X(0, 1) = 2.0;
+    X(1, 0) = 3.0; X(1, 1) = 4.0;
+    
+    Matrix Y(2, 1);
+    Y(0, 0) = 5.0;
+    Y(1, 0) = 6.0;
+    
+    Matrix W1(2, 2);
+    W1(0, 0) = 0.1; W1(0, 1) = 0.2;
+    W1(1, 0) = 0.3; W1(1, 1) = 0.4;
+    
+    Matrix W2(2, 1);
+    W2(0, 0) = 0.5;
+    W2(1, 0) = 0.6;
+    
+    Matrix Z1(2, 2), A1(2, 2), A2(2, 1);
+    Matrix dW1(2, 2), dW2(2, 1);
+
+    double lr = 0.01;
+    int iters = 1000;
+
+    for (int i = 0; i < iters; ++i) {
+        forwardPropagation(X, W1, W2, Z1, A1, A2);
+        backwardPropagation(X, Y, W1, W2, Z1, A1, A2, lr, dW1, dW2);
+        if(iters % 100 == 0){
+            double loss = computeMSE(A2, Y);
+            std::cout << "Iteration " << i << ", Loss: " << loss << "\n";
+        }
+    }
+    
+    std::cout << "Final predictions:\n";
+    for (int i = 0; i < A2.getNumRows(); ++i) {
+        std::cout << A2(i,0) << " (target " << Y(i,0) << ")\n";
+    }
+
+}
+
+// Problem 2: Simple 2x3x1 network
+void problem2()
+{
+    std::cout << "\nPROBLEM 2\n";
+    
+    Matrix X(3, 2);
+    X(0, 0) = 1.0; X(0, 1) = 1.0;
+    X(1, 0) = 2.0; X(1, 1) = 2.0;
+    X(2, 0) = 3.0; X(2, 1) = 3.0;
+    
+    Matrix Y(3, 1);
+    Y(0, 0) = 2.0;
+    Y(1, 0) = 4.0;
+    Y(2, 0) = 6.0;
+    
+    Matrix W1(2, 3);
+    W1(0, 0) = 0.1; W1(0, 1) = 0.2; W1(0, 2) = 0.3;
+    W1(1, 0) = 0.4; W1(1, 1) = 0.5; W1(1, 2) = 0.6;
+    
+    Matrix W2(3, 1);
+    W2(0, 0) = 0.7;
+    W2(1, 0) = 0.8;
+    W2(2, 0) = 0.9;
+    
+    Matrix Z1(3, 3), A1(3, 3), A2(3, 1);
+    Matrix dW1(2, 3), dW2(3, 1);
+    
+    forwardPropagation(X, W1, W2, Z1, A1, A2);
+    double loss = computeMSE(A2, Y);
+    std::cout << "Loss: " << loss << "\n";
+    backwardPropagation(X, Y, W1, W2, Z1, A1, A2, 0.01, dW1, dW2);
+}
 
 
 int main(){
+    std::cout << "LINEAR REGRESSION\n";
     Matrix y(7, 1);
     y(0,0) = -7.0;
     y(1,0) = -5.0;
@@ -158,5 +322,9 @@ int main(){
     double intercept = 0.0;
 
     gradientDescentVectorized(x, y, slope, intercept, 0.01, 1000);
+    
+    problem1();
+    problem2();
+    
     return 0;
 }

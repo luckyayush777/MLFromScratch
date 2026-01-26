@@ -1,3 +1,9 @@
+#pragma once
+#include <vector>
+#include <iostream>
+#include <iomanip>
+#include <stdexcept>
+#include <random>
 class Matrix {
     int numRows;
     int numCols;
@@ -23,7 +29,7 @@ public:
         if (r < 0 || r >= numRows || c < 0 || c >= numCols) {
             throw std::out_of_range("Index out of bounds");
         }
-        return matrixData[r * numCols + c]; // row-major
+        return matrixData[r * numCols + c];
     }
     const double& operator()(int r, int c) const {
         if (r < 0 || r >= numRows || c < 0 || c >= numCols) {
@@ -135,4 +141,39 @@ public:
 
     int getNumRows() const { return numRows; }
     int getNumCols() const { return numCols; }
+    
+    void randomInit(double min, double max) {
+        static std::random_device rd;
+        static std::mt19937 gen(rd());
+        std::uniform_real_distribution<> dis(min, max);
+        
+        for (int i = 0; i < numRows; ++i) {
+            for (int j = 0; j < numCols; ++j) {
+                (*this)(i, j) = dis(gen);
+            }
+        }
+    }
+    
+    void print(const std::string& name) const {
+        std::cout << name << " [" << numRows << "x" << numCols << "]:\n";
+        for (int i = 0; i < numRows; ++i) {
+            std::cout << "  ";
+            for (int j = 0; j < numCols; ++j) {
+                std::cout << std::setw(10) << std::fixed << std::setprecision(4) 
+                          << (*this)(i, j);
+                if (j < numCols - 1) std::cout << " ";
+            }
+            std::cout << "\n";
+        }
+    }
+    
+    double sum() const {
+        double total = 0.0;
+        for (int i = 0; i < numRows; ++i) {
+            for (int j = 0; j < numCols; ++j) {
+                total += (*this)(i, j);
+            }
+        }
+        return total;
+    }
 };
