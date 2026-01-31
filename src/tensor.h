@@ -9,7 +9,7 @@ class Tensor {
 
     private :
     std::vector<size_t> shape;
-    size_t total_size = 0;
+    size_t totalSize = 0;
     std::vector<double> data;
 
     public :
@@ -18,21 +18,21 @@ class Tensor {
         if(shape.empty()){
             throw std::invalid_argument("Shape cannot be empty");
         }
-        total_size = 1;
+        totalSize = 1;
         for(size_t d : shape){
             if(d == 0){
                 throw std::invalid_argument("Shape dimensions must be greater than zero");
             }
-            total_size *= d;
+            totalSize *= d;
         }
-        data.resize(total_size, 0.0);
+        data.resize(totalSize, 0.0);
     }
     const std::vector<size_t>& getShape() const {
         return shape;
     }
 
     size_t noOfElements() const {
-        return total_size;
+        return totalSize;
     }
 
     double* raw() {
@@ -44,14 +44,14 @@ class Tensor {
     }
 
     double& flat(size_t i) {
-        if (i >= total_size) {
+        if (i >= totalSize) {
             throw std::out_of_range("Tensor flat index out of range");
         }
         return data[i];
     }
 
     const double& flat(size_t i) const {
-        if (i >= total_size) {
+        if (i >= totalSize) {
             throw std::out_of_range("Tensor flat index out of range");
         }
         return data[i];
@@ -77,6 +77,68 @@ class Tensor {
             throw std::out_of_range("Tensor index out of range");
         }
         return data[i * cols + j];
+    }
+    
+    size_t dim(size_t i) const {
+        if (i >= shape.size()) {
+            throw std::out_of_range("Shape index out of range");
+        }
+            return shape[i];
+    }
+
+    size_t ndim() const {
+        return shape.size();
+    }
+
+    static Tensor matmul(const Tensor& A, const Tensor& B) {
+    if (A.ndim() != 2 || B.ndim() != 2) {
+        throw std::logic_error("matmul requires 2D tensors");
+    }
+
+    size_t m = A.dim(0);
+    size_t k = A.dim(1);
+    size_t k2 = B.dim(0);
+    size_t n = B.dim(1);
+
+    if (k != k2) {
+        throw std::invalid_argument("matmul shape mismatch");
+    }
+
+    Tensor out({m, n});
+
+    for (size_t i = 0; i < m; ++i) {
+        for (size_t j = 0; j < n; ++j) {
+            double sum = 0.0;
+            for (size_t t = 0; t < k; ++t) {
+                sum += A.at(i, t) * B.at(t, j);
+            }
+            out.at(i, j) = sum;
+        }
+    }
+
+    return out;
+    }   
+
+    static void addBias(Tensor& out, const Tensor& bias) {
+        if (out.ndim() != 2 || bias.ndim() != 1) {
+            throw std::logic_error("addBias requires 2D output tensor and 1D bias tensor");
+        }
+        size_t m = out.dim(0);
+        size_t n = out.dim(1);
+        if (bias.dim(0) != n) {
+            throw std::invalid_argument("addBias shape mismatch");
+        }
+        for (size_t i = 0; i < m; ++i) {
+            for (size_t j = 0; j < n; ++j) {
+                out.at(i, j) += bias.flat(j);
+            }
+        }
+    }
+
+    static Tensor linearForward(const Tensor& X, const Tensor& W, const Tensor& b) {
+        Tensor out = matmul(X, W);
+        addBias(out, b);
+        return out;
     }
 
 };

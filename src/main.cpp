@@ -322,16 +322,16 @@ void problem2()
 
 int main() {
     auto dataset = loadMnist(
-        "../datasets/train-images-idx3-ubyte",
-        "../datasets/train-labels-idx1-ubyte"
+        "datasets/train-images-idx3-ubyte",
+        "datasets/train-labels-idx1-ubyte"
     );
 
-    // Print label of first image
-    std::cout << "Label: "
+    // basic sanity: label
+    std::cout << "Label of sample 0: "
               << static_cast<int>(dataset.labels.flat(0))
               << "\n\n";
 
-    // Print first image as ASCII
+    // print first image as ASCII
     constexpr size_t rows = 28;
     constexpr size_t cols = 28;
 
@@ -342,6 +342,38 @@ int main() {
         }
         std::cout << '\n';
     }
-    dump_png(dataset.images, 0, "mnist_image_0.png");
+
+    // create a tiny batch (B = 1)
+    Tensor X({1, 784});
+    for (size_t j = 0; j < 784; ++j) {
+        X.at(0, j) = dataset.images.at(0, j);
+    }
+
+    //initialize weights and bias
+    Tensor W({784, 10});
+    Tensor b({10});
+
+    std::mt19937 rng(42);
+    std::normal_distribution<double> dist(0.0, 0.01);
+
+    for (size_t i = 0; i < W.noOfElements(); ++i) {
+        W.flat(i) = dist(rng);
+    }
+    for (size_t i = 0; i < b.noOfElements(); ++i) {
+        b.flat(i) = 0.0;
+    }
+
+    Tensor logits = Tensor::linearForward(X, W, b);
+
+    std::cout << "\nLogits shape: ("
+              << logits.dim(0) << ", "
+              << logits.dim(1) << ")\n";
+
+    std::cout << "Logits for sample 0:\n";
+    for (size_t j = 0; j < logits.dim(1); ++j) {
+        std::cout << logits.at(0, j) << " ";
+    }
+    std::cout << "\n";
+
     return 0;
 }
