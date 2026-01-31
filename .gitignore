@@ -1,9 +1,9 @@
-datasets/
+datasets\
 *.ubyte
 *.png
 *.idx*
 
-images/
+images\
 
 #build artifacts
 *.exe
