@@ -1,0 +1,9 @@
+datasets/
+*.ubyte
+*.png
+*.idx*
+
+images/
+
+#build artifacts
+*.exe
