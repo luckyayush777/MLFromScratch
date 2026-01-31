@@ -4,8 +4,29 @@
 #include<cmath>
 #include <stdexcept>
 
-#include "matrix.h"
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
 
+#include "matrix.h"
+#include "mnist.h"
+#include "tensor.h"
+
+
+void dump_png(const Tensor& images, size_t index, const char* filename) {
+    constexpr int W = 28;
+    constexpr int H = 28;
+
+    unsigned char buffer[W * H];
+
+    for (int i = 0; i < H; ++i) {
+        for (int j = 0; j < W; ++j) {
+            double v = images.at(index, i * W + j);
+            buffer[i * W + j] = static_cast<unsigned char>(v * 255.0);
+        }
+    }
+
+    stbi_write_png(filename, W, H, 1, buffer, W);
+}
 
 void gradientDescent(const Matrix& x, const Matrix& y,
                      double& slope, double& intercept,
@@ -299,32 +320,28 @@ void problem2()
 }
 
 
-int main(){
-    std::cout << "LINEAR REGRESSION\n";
-    Matrix y(7, 1);
-    y(0,0) = -7.0;
-    y(1,0) = -5.0;
-    y(2,0) = -3.0;
-    y(3,0) = -1.0;
-    y(4,0) = 1.0;
-    y(5,0) = 3.0;       
-    y(6,0) = 5.0;
+int main() {
+    auto dataset = loadMnist(
+        "../datasets/train-images-idx3-ubyte",
+        "../datasets/train-labels-idx1-ubyte"
+    );
 
-    Matrix x(7, 2);
-    x(0, 0) = -3.0; x(0, 1) = 1.0;  
-    x(1, 0) = -2.0; x(1, 1) = 1.0;
-    x(2, 0) = -1.0; x(2, 1) = 1.0;
-    x(3, 0) = 0.0;  x(3, 1) = 1.0;
-    x(4, 0) = 1.0;  x(4, 1) = 1.0;
-    x(5, 0) = 2.0;  x(5, 1) = 1.0;
-    x(6, 0) = 3.0;  x(6, 1) = 1.0;
-    double slope = 0.0;
-    double intercept = 0.0;
+    // Print label of first image
+    std::cout << "Label: "
+              << static_cast<int>(dataset.labels.flat(0))
+              << "\n\n";
 
-    gradientDescentVectorized(x, y, slope, intercept, 0.01, 1000);
-    
-    problem1();
-    problem2();
-    
+    // Print first image as ASCII
+    constexpr size_t rows = 28;
+    constexpr size_t cols = 28;
+
+    for (size_t i = 0; i < rows; ++i) {
+        for (size_t j = 0; j < cols; ++j) {
+            double pixel = dataset.images.at(0, i * cols + j);
+            std::cout << (pixel > 0.5 ? '#' : ' ');
+        }
+        std::cout << '\n';
+    }
+    dump_png(dataset.images, 0, "mnist_image_0.png");
     return 0;
 }
