@@ -141,4 +141,52 @@ class Tensor {
         return out;
     }
 
+    static void softmax(Tensor& Z){
+        size_t rows = Z.dim(0);
+        size_t cols = Z.dim(1); //this rows and columns is purely temporary and doesnt make any sense for higher dimensions
+
+        for(size_t i = 0; i < rows; ++i){
+            //subtract max for numerical stability
+            double maxVal = Z.at(i, 0);
+            for(size_t j = 0; j < cols; ++j){
+                maxVal = std::max(maxVal, Z.at(i, j));
+            }
+            double sumExp = 0.0;
+            for(size_t j = 0; j < cols; ++j){
+                Z.at(i, j) = std::exp(Z.at(i, j) - maxVal);
+                sumExp += Z.at(i, j);
+            }
+
+            for(size_t j = 0; j < cols; ++j){
+                Z.at(i, j) /= sumExp;
+            }
+        }
+    }
+
+    static double crossEntropyLoss(const Tensor& predictions, const Tensor& targets) {
+        size_t B = predictions.dim(0);
+        double loss = 0.0;
+
+        for(size_t i = 0; i < B; i++){
+            size_t y = static_cast<size_t>(targets.flat(i));
+            loss -= std::log(predictions.at(i, y) + 1e-15); //add small value to avoid log(0)
+        }
+        return loss / B;
+    }
+
+    void softmaxCrossEntropyBackward(Tensor& predictions, const Tensor& labels) {
+        size_t B = predictions.dim(0);
+        size_t C = predictions.dim(1);
+
+        for(size_t i = 0; i < B; i++){
+            size_t y = static_cast<size_t>(labels.flat(i));
+            predictions.at(i, y) -= 1.0;
+        }
+        // average over batch
+        for (size_t i = 0; i < predictions.nOfElements(); ++i){
+            predictions.flat(i) /= B;
+        }
+    }
+
+
 };
