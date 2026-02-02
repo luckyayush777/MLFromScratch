@@ -174,7 +174,7 @@ class Tensor {
         return loss / B;
     }
 
-    void softmaxCrossEntropyBackward(Tensor& predictions, const Tensor& labels) {
+    static void softmaxCrossEntropyBackward(Tensor& predictions, const Tensor& labels) {
         size_t B = predictions.dim(0);
         size_t C = predictions.dim(1);
 
@@ -183,10 +183,37 @@ class Tensor {
             predictions.at(i, y) -= 1.0;
         }
         // average over batch
-        for (size_t i = 0; i < predictions.nOfElements(); ++i){
+        for (size_t i = 0; i < predictions.noOfElements(); ++i){
             predictions.flat(i) /= B;
         }
     }
 
 
+    static void linearBackward(const Tensor& X, const Tensor& dZ, Tensor& dw, Tensor& db){
+        size_t B = X.dim(0);
+        size_t D = X.dim(1);
+        size_t C = dZ.dim(1);
+
+        for(size_t i = 0; i < dw.noOfElements(); ++i){
+            dw.flat(i) = 0.0;
+        }
+        for(size_t j = 0; j < db.noOfElements(); ++j){
+            db.flat(j) = 0.0;
+        }
+
+        for(size_t i = 0; i < B; ++i){
+            for(size_t j = 0; j < D; ++j){
+                for(size_t k = 0; k < C; ++k){
+                    dw.at(j, k) += X.at(i, j) * dZ.at(i, k);
+                }
+            }
+        }
+
+        for(size_t k = 0; k < C; ++k){
+            for(size_t i = 0; i < B; ++i){
+                    db.flat(k) += dZ.at(i, k);
+                }
+        }
+
+    }
 };

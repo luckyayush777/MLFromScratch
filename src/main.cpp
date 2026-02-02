@@ -326,54 +326,67 @@ int main() {
         "datasets/train-labels-idx1-ubyte"
     );
 
-    // basic sanity: label
-    std::cout << "Label of sample 0: "
-              << static_cast<int>(dataset.labels.flat(0))
-              << "\n\n";
+    constexpr size_t B = 32; // batch size
+    constexpr size_t D = 28 * 28; // input dimension
+    constexpr size_t C = 10; // number of classes
+    double learningRate = 0.1;
 
-    // print first image as ASCII
-    constexpr size_t rows = 28;
-    constexpr size_t cols = 28;
+    Tensor X({B, D});
+    Tensor y({B});
 
-    for (size_t i = 0; i < rows; ++i) {
-        for (size_t j = 0; j < cols; ++j) {
-            double pixel = dataset.images.at(0, i * cols + j);
-            std::cout << (pixel > 0.5 ? '#' : ' ');
-        }
-        std::cout << '\n';
+    for (size_t i = 0; i < B; ++i) {
+        for (size_t j = 0; j < D; ++j)
+            X.at(i, j) = dataset.images.at(i, j);
+        y.flat(i) = dataset.labels.flat(i);
     }
 
-    // create a tiny batch (B = 1)
-    Tensor X({1, 784});
-    for (size_t j = 0; j < 784; ++j) {
-        X.at(0, j) = dataset.images.at(0, j);
-    }
 
-    //initialize weights and bias
-    Tensor W({784, 10});
-    Tensor b({10});
+    Tensor W({D, C});
+    Tensor b({C});
 
     std::mt19937 rng(42);
     std::normal_distribution<double> dist(0.0, 0.01);
 
-    for (size_t i = 0; i < W.noOfElements(); ++i) {
+    for (size_t i = 0; i < W.noOfElements(); ++i)
         W.flat(i) = dist(rng);
-    }
-    for (size_t i = 0; i < b.noOfElements(); ++i) {
+    for (size_t i = 0; i < b.noOfElements(); ++i)
         b.flat(i) = 0.0;
+
+    Tensor dW({D, C});
+    Tensor db({C});
+
+
+    double prevLoss = std::numeric_limits<double>::infinity();
+    const double threshold = 1e-6;
+    const int maxSteps = 10000;
+
+    for (int step = 0; step < maxSteps; ++step) {
+
+        // forward
+        Tensor logits = Tensor::linearForward(X, W, b);
+        Tensor probs = logits;
+        Tensor::softmax(probs);
+
+        double loss = Tensor::crossEntropyLoss(probs, y);
+        std::cout << "Step " << step << " | loss = " << loss << "\n";
+
+        if(std::abs(prevLoss - loss) < threshold) {
+            std::cout << "Converged at step " << step << "\n";
+            break;
+        }
+        prevLoss = loss;
+
+        // backward
+        Tensor dZ = probs;
+        Tensor::softmaxCrossEntropyBackward(dZ, y);
+        Tensor::linearBackward(X, dZ, dW, db);
+
+        // SGD update
+        for (size_t i = 0; i < W.noOfElements(); ++i)
+            W.flat(i) -= learningRate * dW.flat(i);
+        for (size_t i = 0; i < b.noOfElements(); ++i)
+            b.flat(i) -= learningRate * db.flat(i);
     }
-
-    Tensor logits = Tensor::linearForward(X, W, b);
-
-    std::cout << "\nLogits shape: ("
-              << logits.dim(0) << ", "
-              << logits.dim(1) << ")\n";
-
-    std::cout << "Logits for sample 0:\n";
-    for (size_t j = 0; j < logits.dim(1); ++j) {
-        std::cout << logits.at(0, j) << " ";
-    }
-    std::cout << "\n";
 
     return 0;
 }
