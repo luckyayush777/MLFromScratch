@@ -319,6 +319,33 @@ void problem2()
     backwardPropagation(X, Y, W1, W2, Z1, A1, A2, 0.01, dW1, dW2);
 }
 
+size_t argmaxRow(const Tensor& logits, size_t row) {
+    size_t best = 0;
+    double bestVal = logits.at(row, 0);
+
+    for(size_t j = 1; j < logits.dim(1); ++j){
+        double val = logits.at(row, j);
+        if(val > bestVal){
+            bestVal = val;
+            best = j;
+        }
+    }
+    return best;
+} 
+
+double computeAccuracy(const Tensor& logits, const Tensor& labels) {
+    size_t correct = 0;
+    size_t total = logits.dim(0);
+
+    for(size_t i = 0; i < total; ++i){
+        size_t predicted = argmaxRow(logits, i);
+        size_t actual = static_cast<size_t>(labels.flat(i));
+        if(predicted == actual){
+            ++correct;
+        }
+    }
+    return static_cast<double>(correct) / static_cast<double>(total);
+}
 
 int main() {
     auto dataset = loadMnist(
@@ -326,19 +353,34 @@ int main() {
         "datasets/train-labels-idx1-ubyte"
     );
 
+    auto testDataset = loadMnist(
+        "datasets/t10k-images-idx3-ubyte",
+        "datasets/t10k-labels-idx1-ubyte"
+    );
+
+    size_t trainSize = dataset.labels.noOfElements();
+
     constexpr size_t B = 32; // batch size
     constexpr size_t D = 28 * 28; // input dimension
     constexpr size_t C = 10; // number of classes
     double learningRate = 0.1;
+    const int evalEvery = 50;
 
     Tensor X({B, D});
     Tensor y({B});
 
+    Tensor X_test({B, D});
+    Tensor y_test({B});
+
     for (size_t i = 0; i < B; ++i) {
         for (size_t j = 0; j < D; ++j)
-            X.at(i, j) = dataset.images.at(i, j);
-        y.flat(i) = dataset.labels.flat(i);
+            X_test.at(i, j) = testDataset.images.at(i, j);
+
+        y_test.flat(i) = testDataset.labels.flat(i);
     }
+
+    const int epochs = 3;
+    size_t batchesPerEpoch = trainSize / B;
 
 
     Tensor W({D, C});
@@ -360,33 +402,76 @@ int main() {
     const double threshold = 1e-6;
     const int maxSteps = 10000;
 
-    for (int step = 0; step < maxSteps; ++step) {
 
-        // forward
+    for (int epoch = 0; epoch < epochs; ++epoch) {
+
+    std::cout << "\nEpoch " << epoch << "\n";
+
+    for (size_t batch = 0; batch < batchesPerEpoch; ++batch) {
+
+        // load sliding batch
+        size_t offset = batch * B;
+
+        for (size_t i = 0; i < B; ++i) {
+            size_t idx = offset + i;
+
+            for (size_t j = 0; j < D; ++j)
+                X.at(i, j) = dataset.images.at(idx, j);
+
+            y.flat(i) = dataset.labels.flat(idx);
+        }
+
+        //forward
         Tensor logits = Tensor::linearForward(X, W, b);
         Tensor probs = logits;
         Tensor::softmax(probs);
 
         double loss = Tensor::crossEntropyLoss(probs, y);
-        std::cout << "Step " << step << " | loss = " << loss << "\n";
 
-        if(std::abs(prevLoss - loss) < threshold) {
-            std::cout << "Converged at step " << step << "\n";
-            break;
-        }
-        prevLoss = loss;
-
-        // backward
+        //backward
         Tensor dZ = probs;
         Tensor::softmaxCrossEntropyBackward(dZ, y);
         Tensor::linearBackward(X, dZ, dW, db);
 
-        // SGD update
+        //update
         for (size_t i = 0; i < W.noOfElements(); ++i)
             W.flat(i) -= learningRate * dW.flat(i);
         for (size_t i = 0; i < b.noOfElements(); ++i)
             b.flat(i) -= learningRate * db.flat(i);
+
+        // occasional test accuracy
+        if (batch % evalEvery == 0) {
+            Tensor testLogits = Tensor::linearForward(X_test, W, b);
+            Tensor testProbs = testLogits;
+            Tensor::softmax(testProbs);
+
+            double testAcc = computeAccuracy(testProbs, y_test);
+            std::cout << "  batch " << batch
+                      << " | loss " << loss
+                      << " | test acc " << testAcc * 100.0 << "%\n";
+            }
+        }
     }
+    size_t correct = 0;
+    size_t total = testDataset.labels.noOfElements();
+
+    for (size_t i = 0; i < total; ++i) {
+        Tensor x1({1, D});
+
+        for (size_t j = 0; j < D; ++j)
+            x1.at(0, j) = testDataset.images.at(i, j);
+
+        Tensor logits = Tensor::linearForward(x1, W, b);
+        size_t pred = argmaxRow(logits, 0);
+        size_t truth = static_cast<size_t>(testDataset.labels.flat(i));
+
+        if (pred == truth)
+            correct++;
+    }
+
+    double finalTestAcc = static_cast<double>(correct) / total;
+    std::cout << "\nFinal Test Accuracy = "<< finalTestAcc * 100.0 << "%\n";
+
 
     return 0;
 }
