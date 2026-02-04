@@ -212,8 +212,26 @@ public:
     }
   }
 
-  static void relu(Tensor& T) {
+  static void relu(Tensor &T) {
     for (size_t i = 0; i < T.noOfElements(); ++i)
-        T.flat(i) = std::max(0.0, T.flat(i));
-}
+      T.flat(i) = std::max(0.0, T.flat(i));
+  }
+
+  static Tensor transpose(const Tensor &input) {
+    Tensor output({input.dim(1), input.dim(0)});
+    if (input.ndim() != 2 || output.ndim() != 2) {
+      throw std::logic_error("transpose requires 2D tensors");
+    }
+    size_t rows = input.dim(0);
+    size_t cols = input.dim(1);
+    if (output.dim(0) != cols || output.dim(1) != rows) {
+      throw std::invalid_argument("transpose shape mismatch");
+    }
+    for (size_t i = 0; i < rows; ++i) {
+      for (size_t j = 0; j < cols; ++j) {
+        output.at(j, i) = input.at(i, j);
+      }
+    }
+    return output;
+  }
 };

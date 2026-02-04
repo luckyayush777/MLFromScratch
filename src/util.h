@@ -2,12 +2,6 @@
 
 class Tensor;
 
-
-
-
-
-
-
 void dump_png(const Tensor &images, size_t index, const char *filename) {
   constexpr int W = 28;
   constexpr int H = 28;
@@ -23,7 +17,6 @@ void dump_png(const Tensor &images, size_t index, const char *filename) {
 
   stbi_write_png(filename, W, H, 1, buffer, W);
 }
-
 
 void gradientDescent(const Matrix &x, const Matrix &y, double &slope,
                      double &intercept, double learningRate,
@@ -60,7 +53,6 @@ void gradientDescent(const Matrix &x, const Matrix &y, double &slope,
     intercept -= learningRate * interceptGradient;
   }
 }
-
 
 void gradientDescentMatricesOnly(const Matrix &x, const Matrix &y,
                                  double learningRate, int maxIterations) {
@@ -100,7 +92,6 @@ void gradientDescentMatricesOnly(const Matrix &x, const Matrix &y,
             << std::endl;
 }
 
-
 void gradientDescentVectorized(const Matrix &x, const Matrix &y, double &slope,
                                double &intercept, double learningRate,
                                int maxIterations) {
@@ -130,9 +121,6 @@ void gradientDescentVectorized(const Matrix &x, const Matrix &y, double &slope,
   std::cout << "Slope: " << slope << ", Intercept: " << intercept << std::endl;
 }
 
-
-
-
 Matrix relu(const Matrix &z) {
   int numRows = z.getNumRows();
   int numCols = z.getNumCols();
@@ -144,7 +132,6 @@ Matrix relu(const Matrix &z) {
   }
   return output;
 }
-
 
 // Forward declarations (defined later in this header)
 void forwardPropagation(const Matrix &X, const Matrix &W1, const Matrix &W2,
@@ -164,19 +151,17 @@ Matrix reluBackward(const Matrix &dA, const Matrix &Z) {
   }
   return dZ;
 }
-Matrix mseBackward(const Matrix &predictions, const Matrix &targets){
-    int m = predictions.getNumRows();
-    Matrix dA(predictions.getNumRows(), predictions.getNumCols());
-    
-    for (int i = 0; i < predictions.getNumRows(); ++i) {
-        for (int j = 0; j < predictions.getNumCols(); ++j) {
-        dA(i, j) = (2.0 / m) * (predictions(i, j) - targets(i, j));
-        }
+Matrix mseBackward(const Matrix &predictions, const Matrix &targets) {
+  int m = predictions.getNumRows();
+  Matrix dA(predictions.getNumRows(), predictions.getNumCols());
+
+  for (int i = 0; i < predictions.getNumRows(); ++i) {
+    for (int j = 0; j < predictions.getNumCols(); ++j) {
+      dA(i, j) = (2.0 / m) * (predictions(i, j) - targets(i, j));
     }
-    return dA;
+  }
+  return dA;
 }
-
-
 
 size_t argmaxRow(const Tensor &logits, size_t row) {
   size_t best = 0;
@@ -205,7 +190,6 @@ double computeAccuracy(const Tensor &logits, const Tensor &labels) {
   }
   return static_cast<double>(correct) / static_cast<double>(total);
 }
-
 
 void forwardPropagation(const Matrix &X, const Matrix &W1, const Matrix &W2,
                         Matrix &Z1, Matrix &A1, Matrix &A2) {
