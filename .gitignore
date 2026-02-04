@@ -4,6 +4,7 @@ datasets/
 *.idx*
 
 images/
+build/
 
 #build artifacts
 *.exe
