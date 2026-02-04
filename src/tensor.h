@@ -211,4 +211,9 @@ public:
       }
     }
   }
+
+  static void relu(Tensor& T) {
+    for (size_t i = 0; i < T.noOfElements(); ++i)
+        T.flat(i) = std::max(0.0, T.flat(i));
+}
 };

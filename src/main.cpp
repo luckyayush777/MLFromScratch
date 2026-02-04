@@ -5,15 +5,14 @@
 #include <stdexcept>
 #include <vector>
 
-
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
+#include "layer.h"
 #include "matrix.h"
 #include "mnist.h"
 #include "tensor.h"
 #include "util.h"
-
 
 template <typename Dataset>
 static void loadBatch(const Dataset &dataset, Tensor &X, Tensor &y,
@@ -36,52 +35,42 @@ static void initLinearParams(Tensor &W, Tensor &b, std::mt19937 &rng) {
     b.flat(i) = 0.0;
 }
 
-static double trainStep(const Tensor &X, const Tensor &y, Tensor &W, Tensor &b,
-                        Tensor &dW, Tensor &db, double learningRate) {
-  Tensor logits = Tensor::linearForward(X, W, b);
-  Tensor probs = logits;
-  Tensor::softmax(probs);
-  const double loss = Tensor::crossEntropyLoss(probs, y);
-
-  Tensor dZ = probs;
-  Tensor::softmaxCrossEntropyBackward(dZ, y);
-  Tensor::linearBackward(X, dZ, dW, db);
-
-  for (size_t i = 0; i < W.noOfElements(); ++i)
-    W.flat(i) -= learningRate * dW.flat(i);
-  for (size_t i = 0; i < b.noOfElements(); ++i)
-    b.flat(i) -= learningRate * db.flat(i);
-
-  return loss;
-}
-
-static double evalAccuracy(const Tensor &X, const Tensor &y, const Tensor &W,
-                           const Tensor &b) {
-  Tensor logits = Tensor::linearForward(X, W, b);
-  Tensor probs = logits;
-  Tensor::softmax(probs);
-  return computeAccuracy(probs, y);
-}
-
-template <typename Dataset>
-static double evalAccuracyFull(const Dataset &testDataset, const Tensor &W,
-                               const Tensor &b) {
+static double evalAccuracyFullMLP(const auto &testDataset, layer &fc1,
+                                  layer &fc2) {
   const size_t total = testDataset.labels.noOfElements();
-  const size_t D = W.dim(0);
+  const size_t D = fc1.W.dim(0);
   size_t correct = 0;
+
   for (size_t i = 0; i < total; ++i) {
     Tensor x1({1, D});
     for (size_t j = 0; j < D; ++j)
       x1.at(0, j) = testDataset.images.at(i, j);
-    Tensor logits = Tensor::linearForward(x1, W, b);
-    const size_t pred = argmaxRow(logits, 0);
-    const size_t truth = static_cast<size_t>(testDataset.labels.flat(i));
+
+    Tensor z1 = Layer::forward(fc1, x1);
+    Tensor a1 = z1;
+    Tensor::relu(a1);
+
+    Tensor logits = Layer::forward(fc2, a1);
+    size_t pred = argmaxRow(logits, 0);
+    size_t truth = static_cast<size_t>(testDataset.labels.flat(i));
+
     if (pred == truth)
       ++correct;
   }
+
   return static_cast<double>(correct) / static_cast<double>(total);
 }
 
+static double evalAccuracyMLP(const Tensor &X, const Tensor &y,
+                              const layer &fc1, const layer &fc2) {
+  Tensor Z1 = Layer::forward(fc1, X);
+  Tensor A1 = Z1;
+  Tensor::relu(A1);
+  Tensor logits = Layer::forward(fc2, A1);
+  Tensor probs = logits;
+  Tensor::softmax(probs);
+  return computeAccuracy(probs, y);
+}
 
 int main() {
   auto dataset = loadMnist("datasets/train-images-idx3-ubyte",
@@ -95,8 +84,9 @@ int main() {
   constexpr size_t B = 32;      // batch size
   constexpr size_t D = 28 * 28; // input dimension
   constexpr size_t C = 10;      // number of classes
-  double learningRate = 0.1;
-  const int evalEvery = 50;
+  constexpr size_t H = 128;     // hidden layer size
+  double learningRate = 0.01;
+  const int evalEvery = 250;
 
   Tensor X({B, D});
   Tensor y({B});
@@ -109,15 +99,11 @@ int main() {
   const int epochs = 3;
   size_t batchesPerEpoch = trainSize / B;
 
-  Tensor W({D, C});
-  Tensor b({C});
-
+  layer fc1(D, H);
+  layer fc2(H, C);
   std::mt19937 rng(42);
-  initLinearParams(W, b, rng);
-
-  Tensor dW({D, C});
-  Tensor db({C});
-
+  initLinearParams(fc1.W, fc1.b, rng);
+  initLinearParams(fc2.W, fc2.b, rng);
   for (int epoch = 0; epoch < epochs; ++epoch) {
 
     std::cout << "\nEpoch " << epoch << "\n";
@@ -126,16 +112,39 @@ int main() {
       size_t offset = batch * B;
 
       loadBatch(dataset, X, y, offset);
-      const double loss = trainStep(X, y, W, b, dW, db, learningRate);
 
+      // forward pass
+      Tensor Z1 = Layer::forward(fc1, X);
+      Tensor A1 = Z1;
+      Tensor::relu(A1);
+
+      Tensor logits = Layer::forward(fc2, A1);
+      Tensor probs = logits;
+      Tensor::softmax(probs);
+      double loss = Tensor::crossEntropyLoss(probs, y);
+
+      // backward pass
+      Tensor dZ = probs;
+      Tensor::softmaxCrossEntropyBackward(dZ, y);
+      Tensor dA1 = Layer::backward(fc2, dZ);
+
+      // relu backward
+      for (size_t i = 0; i < A1.noOfElements(); ++i) {
+        if (Z1.flat(i) <= 0)
+          dA1.flat(i) = 0.0;
+      }
+      Tensor dX = Layer::backward(fc1, dA1);
+      // update weights
+      Layer::step(fc2, learningRate);
+      Layer::step(fc1, learningRate);
       if (batch % evalEvery == 0) {
-        const double testAcc = evalAccuracy(X_test, y_test, W, b);
+        const double testAcc = evalAccuracyMLP(X_test, y_test, fc1, fc2);
         std::cout << "  batch " << batch << " | loss " << loss << " | test acc "
                   << testAcc * 100.0 << "%\n";
       }
     }
   }
-  const double finalTestAcc = evalAccuracyFull(testDataset, W, b);
+  const double finalTestAcc = evalAccuracyFullMLP(testDataset, fc1, fc2);
   std::cout << "\nFinal Test Accuracy = " << finalTestAcc * 100.0 << "%\n";
 
   return 0;
