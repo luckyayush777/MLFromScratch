@@ -151,7 +151,6 @@ int main() {
       epoch_relu_alive_sum += alive_frac;
       batch_count++;
     }
-    // Clear progress bar line
     std::cout << "\r" << std::string(70, ' ') << "\r";
 
     // epoch summary
