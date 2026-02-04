@@ -9,15 +9,13 @@ struct Layer {
   Layer(size_t in, size_t out, std::mt19937 &rng)
       : W({in, out}), b({out}), dW({in, out}), db({out}) {
 
-    std::normal_distribution<double> dist(0.0, 0.01);
-
+    double std = std::sqrt(2.0 / in);
+    std::normal_distribution<double> dist(0.0, std);
     for (size_t i = 0; i < W.noOfElements(); ++i)
       W.flat(i) = dist(rng);
-
     for (size_t i = 0; i < b.noOfElements(); ++i)
       b.flat(i) = 0.0;
   }
-
   Tensor forward(const Tensor &X) {
     X_cache = X;
     return Tensor::linearForward(X, W, b);

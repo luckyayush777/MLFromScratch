@@ -4,6 +4,7 @@
 #include <random>
 #include <stdexcept>
 #include <vector>
+#include <algorithm>
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
@@ -15,18 +16,19 @@
 #include "util.h"
 
 template <typename Dataset>
-static void loadBatch(const Dataset &dataset, Tensor &X, Tensor &y,
+static void loadBatch(const Dataset &dataset,
+                      const std::vector<size_t> &indices,
+                      Tensor &X, Tensor &y,
                       size_t offset) {
   const size_t B = X.dim(0);
   const size_t D = X.dim(1);
   for (size_t i = 0; i < B; ++i) {
-    const size_t idx = offset + i;
+    const size_t idx = indices[offset + i];
     for (size_t j = 0; j < D; ++j)
       X.at(i, j) = dataset.images.at(idx, j);
     y.flat(i) = dataset.labels.flat(idx);
   }
 }
-
 static double evalAccuracyFullMLP(const auto &testDataset, Layer &fc1,
                                   Layer &fc2) {
   const size_t total = testDataset.labels.noOfElements();
@@ -73,6 +75,11 @@ int main() {
 
   size_t trainSize = dataset.labels.noOfElements();
 
+
+  std::vector<size_t> indices(trainSize);
+  for (size_t i = 0; i < trainSize; ++i)
+    indices[i] = i;
+
   constexpr size_t B = 32;      // batch size
   constexpr size_t D = 28 * 28; // input dimension
   constexpr size_t C = 10;      // number of classes
@@ -86,7 +93,7 @@ int main() {
   Tensor X_test({B, D});
   Tensor y_test({B});
 
-  loadBatch(testDataset, X_test, y_test, 0);
+  loadBatch(testDataset, indices, X_test, y_test, 0);
 
   const int epochs = 3;
   size_t batchesPerEpoch = trainSize / B;
@@ -99,11 +106,11 @@ int main() {
     double epoch_loss_sum = 0.0;
     double epoch_relu_alive_sum = 0.0;
     size_t batch_count = 0;
-
+    std::shuffle(indices.begin(), indices.end(), rng);
     for (size_t batch = 0; batch < batchesPerEpoch; ++batch) {
       size_t offset = batch * B;
 
-      loadBatch(dataset, X, y, offset);
+      loadBatch(dataset, indices, X, y, offset);
 
       // forward
       Tensor Z1 = fc1.forward(X);
@@ -146,11 +153,15 @@ int main() {
     double avg_loss = epoch_loss_sum / batch_count;
     double avg_relu_alive = epoch_relu_alive_sum / batch_count;
 
-    double test_acc = evalAccuracyFullMLP(testDataset, fc1, fc2);
+    double train_acc = evalAccuracyMLP(X_test, y_test, fc1, fc2);
 
     std::cout << "Epoch " << epoch << " | avg loss " << avg_loss
               << " | ReLU alive " << avg_relu_alive * 100.0 << "%"
-              << " | test acc " << test_acc * 100.0 << "%\n";
+              << " | test acc " << train_acc * 100.0 << "%\n";
+    if(epoch == epochs - 1) {
+      double full_test_acc = evalAccuracyFullMLP(testDataset, fc1, fc2);
+      std::cout << "Final test accuracy over full test set: " << full_test_acc * 100.0 << "%\n";
+    }
   }
 
   return 0;
