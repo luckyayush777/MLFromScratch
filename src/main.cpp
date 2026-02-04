@@ -27,14 +27,6 @@ static void loadBatch(const Dataset &dataset, Tensor &X, Tensor &y,
   }
 }
 
-static void initLinearParams(Layer &layer, std::mt19937 &rng) {
-  std::normal_distribution<double> dist(0.0, 0.01);
-  for (size_t i = 0; i < layer.W.noOfElements(); ++i)
-    layer.W.flat(i) = dist(rng);
-  for (size_t i = 0; i < layer.b.noOfElements(); ++i)
-    layer.b.flat(i) = 0.0;
-}
-
 static double evalAccuracyFullMLP(const auto &testDataset, Layer &fc1,
                                   Layer &fc2) {
   const size_t total = testDataset.labels.noOfElements();
