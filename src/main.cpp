@@ -41,16 +41,17 @@ static void loadBatch(const Dataset &dataset,
 }
 
 int main() {
+  try {
   // hyperparameters
   double learningRate = 0.005;
 
   auto start = std::chrono::high_resolution_clock::now();
 
   std::cout << "Loading MNIST Data...\n";
-  auto dataset = loadMnist("../datasets/train-images-idx3-ubyte",
-                           "../datasets/train-labels-idx1-ubyte");
-  auto testDataset = loadMnist("../datasets/t10k-images-idx3-ubyte",
-                               "../datasets/t10k-labels-idx1-ubyte");
+  auto dataset = loadMnist("datasets/train-images-idx3-ubyte",
+                           "datasets/train-labels-idx1-ubyte");
+  auto testDataset = loadMnist("datasets/t10k-images-idx3-ubyte",
+                               "datasets/t10k-labels-idx1-ubyte");
 
   size_t trainSize = dataset.labels.noOfElements();
   std::vector<size_t> indices(trainSize);
@@ -76,7 +77,7 @@ int main() {
   Layer fc1(flattened_dim, hidden_dim, rng);
   Layer fc2(hidden_dim, C, rng);
 
-  std::cout << "Starting Forward Pass Debug ---\n";
+  std::cout << "Starting Forward Pass Debug \n";
 
   Tensor X_img({B, 1, 28, 28});
   for (size_t b = 0; b < B; ++b) {
@@ -116,7 +117,7 @@ int main() {
   Tensor::softmax(probs);
   double loss = Tensor::crossEntropyLoss(probs, y);
 
-  std::cout << "--- Forward Pass Complete ---\n";
+  std::cout << "Forward Pass Complete\n";
   std::cout << "Initial Batch Loss: " << loss << "\n";
   std::cout << "First prediction probabilities: [ ";
   for (int c = 0; c < 10; ++c)
@@ -129,4 +130,8 @@ int main() {
   std::cout << "Total time: " << duration.count() / 1000.0 << "s\n";
 
   return 0;
+  } catch (const std::exception &e) {
+    std::cerr << "Error: " << e.what() << std::endl;
+    return 1;
+  }
 }
