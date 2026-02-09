@@ -1,5 +1,5 @@
 #pragma once
-
+#include<random>
 #include "tensor.h"
 
 struct Layer {

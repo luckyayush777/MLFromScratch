@@ -47,10 +47,10 @@ int main() {
   auto start = std::chrono::high_resolution_clock::now();
 
   std::cout << "Loading MNIST Data...\n";
-  auto dataset = loadMnist("datasets/train-images-idx3-ubyte",
-                           "datasets/train-labels-idx1-ubyte");
-  auto testDataset = loadMnist("datasets/t10k-images-idx3-ubyte",
-                               "datasets/t10k-labels-idx1-ubyte");
+  auto dataset = loadMnist("../datasets/train-images-idx3-ubyte",
+                           "../datasets/train-labels-idx1-ubyte");
+  auto testDataset = loadMnist("../datasets/t10k-images-idx3-ubyte",
+                               "../datasets/t10k-labels-idx1-ubyte");
 
   size_t trainSize = dataset.labels.noOfElements();
   std::vector<size_t> indices(trainSize);

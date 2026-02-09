@@ -1,27 +1,37 @@
-#pragma once
 #include "conv2d.h"
 
-static Tensor conv2dForward(const Conv2d &conv, const Tensor &input) {
+#include <limits>
+#include <stdexcept>
+
+Tensor Conv2d::conv2dForward(const Conv2d &conv, const Tensor &input) {
   size_t batchSize = input.dim(0);
   size_t inputChannels = input.dim(1);
   size_t inputHeight = input.dim(2);
   size_t inputWidth = input.dim(3);
+
+  // Safety check for negative dimensions
+  if (inputHeight + 2 * conv.padding < (size_t)conv.kernel)
+    throw std::runtime_error("Kernel larger than padded input");
 
   size_t outputHeight =
       (inputHeight + 2 * conv.padding - conv.kernel) / conv.stride + 1;
   size_t outputWidth =
       (inputWidth + 2 * conv.padding - conv.kernel) / conv.stride + 1;
 
-  Tensor out({batchSize, conv.outChannels, outputHeight, outputWidth});
+  Tensor out({batchSize, static_cast<size_t>(conv.outChannels), outputHeight,
+              outputWidth});
 
   for (size_t batch = 0; batch < batchSize; ++batch) {
-    for (size_t outChannel = 0; outChannel < conv.outChannels; ++outChannel) {
+    for (size_t outChannel = 0; outChannel < (size_t)conv.outChannels;
+         ++outChannel) {
       for (size_t outputY = 0; outputY < outputHeight; ++outputY) {
         for (size_t outputX = 0; outputX < outputWidth; ++outputX) {
           double sum = 0.0;
           for (size_t inChannel = 0; inChannel < inputChannels; ++inChannel) {
-            for (size_t kernelY = 0; kernelY < conv.kernel; ++kernelY) {
-              for (size_t kernelX = 0; kernelX < conv.kernel; ++kernelX) {
+            for (size_t kernelY = 0; kernelY < (size_t)conv.kernel; ++kernelY) {
+              for (size_t kernelX = 0; kernelX < (size_t)conv.kernel;
+                   ++kernelX) {
+
                 const int inputY = static_cast<int>(outputY * conv.stride +
                                                     kernelY - conv.padding);
                 const int inputX = static_cast<int>(outputX * conv.stride +
@@ -29,6 +39,8 @@ static Tensor conv2dForward(const Conv2d &conv, const Tensor &input) {
 
                 const double inputVal = conv.getPaddedInput(
                     input, batch, inChannel, inputY, inputX);
+
+                // Use 4D accessor for weights
                 const double weightVal =
                     conv.W.at(outChannel, inChannel, kernelY, kernelX);
                 sum += inputVal * weightVal;
@@ -44,8 +56,8 @@ static Tensor conv2dForward(const Conv2d &conv, const Tensor &input) {
   return out;
 }
 
-static double getPaddedInput(const Tensor &X, size_t batch, size_t channel,
-                             int h, int w) {
+double Conv2d::getPaddedInput(const Tensor &X, size_t batch, size_t channel,
+                              int h, int w) const {
   const size_t height = X.dim(2);
   const size_t width = X.dim(3);
 
@@ -55,7 +67,7 @@ static double getPaddedInput(const Tensor &X, size_t batch, size_t channel,
   return X.at(batch, channel, h, w);
 }
 
-static Tensor flattenForward(const Tensor &input) {
+Tensor Conv2d::flattenForward(const Tensor &input) {
   size_t batchSize = input.dim(0);
   size_t channels = input.dim(1);
   size_t height = input.dim(2);
@@ -75,8 +87,8 @@ static Tensor flattenForward(const Tensor &input) {
   return out;
 }
 
-static Tensor maxPool2dForward(const Tensor &input, size_t poolSize,
-                               size_t stride) {
+Tensor Conv2d::maxPool2dForward(const Tensor &input, size_t poolSize,
+                                size_t stride) {
   // Input shape
   size_t batchSize = input.dim(0);
   size_t channels = input.dim(1);

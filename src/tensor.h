@@ -3,7 +3,7 @@
 #include <numeric>
 #include <stdexcept>
 #include <vector>
-
+#include<cmath>
 class Tensor {
 
 private:
