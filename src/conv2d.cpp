@@ -22,12 +22,10 @@ Tensor conv2dForward(const Conv2d &conv, const Tensor &input) {
           for (size_t inChannel = 0; inChannel < inputChannels; ++inChannel) {
             for (size_t kernelY = 0; kernelY < conv.kernel; ++kernelY) {
               for (size_t kernelX = 0; kernelX < conv.kernel; ++kernelX) {
-                const int inputY =
-                    outputY * static_cast<int>(conv.stride + kernelY) -
-                    conv.padding;
-                const int inputX =
-                    outputX * static_cast<int>(conv.stride + kernelX) -
-                    conv.padding;
+                const int inputY = static_cast<int>(outputY * conv.stride +
+                                                    kernelY - conv.padding);
+                const int inputX = static_cast<int>(outputX * conv.stride +
+                                                    kernelX - conv.padding);
 
                 const double inputVal = conv.getPaddedInput(
                     input, batch, inChannel, inputY, inputX);
@@ -37,6 +35,7 @@ Tensor conv2dForward(const Conv2d &conv, const Tensor &input) {
               }
             }
           }
+          sum += conv.b.flat(outChannel);
           out.at(batch, outChannel, outputY, outputX) = sum;
         }
       }
