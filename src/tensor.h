@@ -71,6 +71,43 @@ public:
     return data[i * cols + j];
   }
 
+  // tensor indexing for 4D tensors (for conv2d)
+  double &at(size_t i, size_t j, size_t k, size_t l) {
+    if (shape.size() != 4) {
+      throw std::logic_error("Tensor is not 4D");
+    }
+    size_t channels = shape[1];
+    size_t height = shape[2];
+    size_t width = shape[3];
+    if (i >= shape[0] || j >= channels || k >= height || l >= width) {
+      throw std::out_of_range("Tensor index out of range");
+    }
+    size_t index =
+        channels * height * width * i + height * width * j + width * k + l;
+    if (index >= totalSize) {
+      throw std::out_of_range("Tensor index out of range");
+    }
+    return data[index];
+  }
+
+  const double &at(size_t i, size_t j, size_t k, size_t l) const {
+    if (shape.size() != 4) {
+      throw std::logic_error("Tensor is not 4D");
+    }
+    size_t channels = shape[1];
+    size_t height = shape[2];
+    size_t width = shape[3];
+    if (i >= shape[0] || j >= channels || k >= height || l >= width) {
+      throw std::out_of_range("Tensor index out of range");
+    }
+    size_t index =
+        channels * height * width * i + height * width * j + width * k + l;
+    if (index >= totalSize) {
+      throw std::out_of_range("Tensor index out of range");
+    }
+    return data[index];
+  }
+
   size_t dim(size_t i) const {
     if (i >= shape.size()) {
       throw std::out_of_range("Shape index out of range");

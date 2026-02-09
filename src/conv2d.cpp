@@ -1,7 +1,7 @@
 #pragma once
 #include "conv2d.h"
 
-Tensor conv2dForward(const Conv2d &conv, const Tensor &input) {
+static Tensor conv2dForward(const Conv2d &conv, const Tensor &input) {
   size_t batchSize = input.dim(0);
   size_t inputChannels = input.dim(1);
   size_t inputHeight = input.dim(2);
@@ -44,8 +44,8 @@ Tensor conv2dForward(const Conv2d &conv, const Tensor &input) {
   return out;
 }
 
-double getPaddedInput(const Tensor &X, size_t batch, size_t channel, int h,
-                      int w) {
+static double getPaddedInput(const Tensor &X, size_t batch, size_t channel,
+                             int h, int w) {
   const size_t height = X.dim(2);
   const size_t width = X.dim(3);
 
@@ -55,7 +55,7 @@ double getPaddedInput(const Tensor &X, size_t batch, size_t channel, int h,
   return X.at(batch, channel, h, w);
 }
 
-Tensor flattenForward(const Tensor &input) {
+static Tensor flattenForward(const Tensor &input) {
   size_t batchSize = input.dim(0);
   size_t channels = input.dim(1);
   size_t height = input.dim(2);
@@ -75,7 +75,8 @@ Tensor flattenForward(const Tensor &input) {
   return out;
 }
 
-Tensor maxPool2dForward(const Tensor &input, size_t poolSize, size_t stride) {
+static Tensor maxPool2dForward(const Tensor &input, size_t poolSize,
+                               size_t stride) {
   // Input shape
   size_t batchSize = input.dim(0);
   size_t channels = input.dim(1);
