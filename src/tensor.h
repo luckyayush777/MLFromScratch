@@ -1,9 +1,10 @@
 #pragma once
 
+#include <cmath>
 #include <numeric>
 #include <stdexcept>
 #include <vector>
-#include<cmath>
+
 class Tensor {
 
 private:
@@ -162,6 +163,11 @@ public:
       }
     }
   }
+  static void zeroTensor(Tensor &t) {
+    for (size_t i = 0; i < t.noOfElements(); ++i) {
+      t.flat(i) = 0.0;
+    }
+  }
 
   static Tensor linearForward(const Tensor &X, const Tensor &W,
                               const Tensor &b) {
@@ -209,7 +215,7 @@ public:
   static void softmaxCrossEntropyBackward(Tensor &predictions,
                                           const Tensor &labels) {
     size_t B = predictions.dim(0);
-    size_t C = predictions.dim(1);
+    // size_t C = predictions.dim(1);
 
     for (size_t i = 0; i < B; i++) {
       size_t y = static_cast<size_t>(labels.flat(i));

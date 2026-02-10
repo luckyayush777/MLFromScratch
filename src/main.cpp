@@ -41,7 +41,6 @@ static void loadBatch(const Dataset &dataset,
 }
 
 int main() {
-  try {
   // hyperparameters
   double learningRate = 0.005;
 
@@ -128,10 +127,6 @@ int main() {
   auto duration =
       std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
   std::cout << "Total time: " << duration.count() / 1000.0 << "s\n";
-
+  Conv2d::testSoftmaxCrossEntropyBackwardPerfectPrediction();
   return 0;
-  } catch (const std::exception &e) {
-    std::cerr << "Error: " << e.what() << std::endl;
-    return 1;
-  }
 }

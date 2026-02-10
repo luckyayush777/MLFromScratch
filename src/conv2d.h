@@ -34,4 +34,16 @@ struct Conv2d {
   static Tensor flattenForward(const Tensor &input);
   static Tensor maxPool2dForward(const Tensor &input, size_t poolSize,
                                  size_t stride);
+  static Tensor softmaxCrossEntropyBackward(const Tensor &logits,
+                                            const Tensor &targets);
+  static double softmaxCrossEntropyLoss(const Tensor &logits,
+                                        const Tensor &targets);
+  static Tensor reluBackward(const Tensor &Z, const Tensor &dA);
+  static Tensor flattenBackward(const Tensor &dOut, const Tensor &inputShape);
+  static Tensor maxPool2dBackward(const Tensor &dOut, const Tensor &input,
+                                  size_t poolSize, size_t stride);
+  static void conv2dBackward(const Tensor &input, const Tensor &dOut, Tensor &dInput,
+                             Tensor &dW, Tensor &db);
+      // this doesnt belong here ideally but we can move it later
+      static void testSoftmaxCrossEntropyBackwardPerfectPrediction();
 };
