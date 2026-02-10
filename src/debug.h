@@ -7,12 +7,13 @@ struct Debug {
 
   static void checkShape(const Tensor &t, const std::vector<size_t> &expected,
                          const std::string &name) {
-    if (t.shape() != expected) {
+    if (t.getShape() != expected) {
       std::cerr << "SHAPE ERROR in " << name << "\nExpected: ";
       for (auto d : expected)
         std::cerr << d << " ";
       std::cerr << "\nGot: ";
-      for (auto d : t.shape())
+      for (auto d : t.getShape())
+      
         std::cerr << d << " ";
       std::cerr << std::endl;
       std::exit(1);

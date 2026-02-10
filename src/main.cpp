@@ -1,3 +1,6 @@
+#define _CRT_SECURE_NO_WARNINGS
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -6,8 +9,6 @@
 #include <random>
 #include <stdexcept>
 #include <vector>
-
-#define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "conv2d.h"
 #include "layer.h"
 #include "matrix.h"
@@ -15,7 +16,7 @@
 #include "stb_image_write.h"
 #include "tensor.h"
 #include "util.h"
-
+#include "debug.h"
 
 void printShape(const std::string &name, const Tensor &t) {
   const auto &s = t.getShape();
@@ -43,6 +44,7 @@ static void loadBatch(const Dataset &dataset,
 int main() {
   // hyperparameters
   double learningRate = 0.005;
+  (void)learningRate;
 
   auto start = std::chrono::high_resolution_clock::now();
 
@@ -112,16 +114,38 @@ int main() {
   Tensor logits = fc2.forward(A_fc1);
   printShape("Logits Output", logits);
 
-  Tensor probs = logits;
-  Tensor::softmax(probs);
-  double loss = Tensor::crossEntropyLoss(probs, y);
+  double loss = Conv2d::softmaxCrossEntropyLoss(logits, y);
+  std::cout << "Loss: " << loss << "\n";
+  Tensor dLogits = Conv2d::softmaxCrossEntropyBackward(logits, y);
 
-  std::cout << "Forward Pass Complete\n";
-  std::cout << "Initial Batch Loss: " << loss << "\n";
-  std::cout << "First prediction probabilities: [ ";
-  for (int c = 0; c < 10; ++c)
-    std::cout << probs.at(0, c) << " ";
-  std::cout << "]\n";
+  // BACKWARD
+  std::cout << "Backward: fc2.backward" << std::endl;
+  Tensor dA_fc1 = fc2.backward(dLogits);
+  std::cout << "Backward: reluBackward(Z_fc1)" << std::endl;
+  Tensor dZ_fc1 = Conv2d::reluBackward(Z_fc1, dA_fc1);
+
+  std::cout << "Backward: fc1.backward" << std::endl;
+  Tensor dZ_flat = fc1.backward(dZ_fc1);
+  std::cout << "Backward: flattenBackward" << std::endl;
+  Tensor dZ_pool = Conv2d::flattenBackward(dZ_flat, Z_pool);
+
+  std::cout << "Backward: maxPool2dBackward" << std::endl;
+  Tensor dA_conv = Conv2d::maxPool2dBackward(dZ_pool, A_conv, 2, 2);
+  std::cout << "Backward: reluBackward(Z_conv)" << std::endl;
+  Tensor dZ_conv = Conv2d::reluBackward(Z_conv, dA_conv);
+
+  Tensor dX_img, dW_conv, db_conv;
+  dW_conv = Tensor({8, 1, 3, 3});
+  db_conv = Tensor({8});
+  dX_img = Tensor({B, 1, 28, 28});
+
+  std::cout << "Backward: conv2dBackward" << std::endl;
+  conv1.conv2dBackward(X_img, dZ_conv, dX_img, dW_conv, db_conv);
+  Debug::stats(dLogits, "dLogits");
+  Debug::stats(fc2.dW, "fc2 dW");
+  Debug::stats(fc1.dW, "fc1 dW");
+  Debug::stats(dW_conv, "conv dW");
+  Debug::stats(db_conv, "conv db");
 
   auto end = std::chrono::high_resolution_clock::now();
   auto duration =

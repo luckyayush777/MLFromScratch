@@ -10,7 +10,7 @@ Tensor Conv2d::conv2dForward(const Conv2d &conv, const Tensor &input) {
   size_t inputWidth = input.dim(3);
 
   // Safety check for negative dimensions
-  if (inputHeight + 2 * conv.padding < (size_t)conv.kernel)
+  if (inputHeight + 2 * conv.padding < conv.kernel)
     throw std::runtime_error("Kernel larger than padded input");
 
   size_t outputHeight =
@@ -18,24 +18,25 @@ Tensor Conv2d::conv2dForward(const Conv2d &conv, const Tensor &input) {
   size_t outputWidth =
       (inputWidth + 2 * conv.padding - conv.kernel) / conv.stride + 1;
 
-  Tensor out({batchSize, static_cast<size_t>(conv.outChannels), outputHeight,
-              outputWidth});
+  Tensor out({batchSize, conv.outChannels, outputHeight, outputWidth});
 
   for (size_t batch = 0; batch < batchSize; ++batch) {
-    for (size_t outChannel = 0; outChannel < (size_t)conv.outChannels;
+    for (size_t outChannel = 0; outChannel < conv.outChannels;
          ++outChannel) {
       for (size_t outputY = 0; outputY < outputHeight; ++outputY) {
         for (size_t outputX = 0; outputX < outputWidth; ++outputX) {
           double sum = 0.0;
           for (size_t inChannel = 0; inChannel < inputChannels; ++inChannel) {
-            for (size_t kernelY = 0; kernelY < (size_t)conv.kernel; ++kernelY) {
-              for (size_t kernelX = 0; kernelX < (size_t)conv.kernel;
+            for (size_t kernelY = 0; kernelY < conv.kernel; ++kernelY) {
+              for (size_t kernelX = 0; kernelX < conv.kernel;
                    ++kernelX) {
 
-                const int inputY = static_cast<int>(outputY * conv.stride +
-                                                    kernelY - conv.padding);
-                const int inputX = static_cast<int>(outputX * conv.stride +
-                                                    kernelX - conv.padding);
+                const int inputY =
+                  static_cast<int>(outputY * conv.stride + kernelY) -
+                  static_cast<int>(conv.padding);
+                const int inputX =
+                  static_cast<int>(outputX * conv.stride + kernelX) -
+                  static_cast<int>(conv.padding);
 
                 const double inputVal = conv.getPaddedInput(
                     input, batch, inChannel, inputY, inputX);
@@ -64,7 +65,8 @@ double Conv2d::getPaddedInput(const Tensor &X, size_t batch, size_t channel,
   if (h < 0 || w < 0 || h >= (int)height || w >= (int)width) {
     return 0.0; // zero padding
   }
-  return X.at(batch, channel, h, w);
+  return X.at(batch, channel, static_cast<size_t>(h),
+              static_cast<size_t>(w));
 }
 
 Tensor Conv2d::flattenForward(const Tensor &input) {
@@ -222,11 +224,11 @@ void Conv2d::testSoftmaxCrossEntropyBackwardPerfectPrediction() {
 }
 
 Tensor Conv2d::reluBackward(const Tensor &Z, const Tensor &dA) {
-  if (Z.dim(0) != dA.dim(0) || Z.dim(1) != dA.dim(1) || Z.dim(2) != dA.dim(2) || Z.dim(3) != dA.dim(3)) {
+  if (Z.getShape() != dA.getShape()) {
     throw std::runtime_error("Dimension mismatch in reluBackward");
   }
 
-  Tensor dZ(Z.shape());
+  Tensor dZ(Z.getShape());
   for (size_t i = 0; i < Z.noOfElements(); ++i) {
     dZ.flat(i) = (Z.flat(i) > 0.0) ? dA.flat(i) : 0.0;
   }
@@ -243,7 +245,7 @@ Tensor Conv2d::flattenBackward(const Tensor &dOut, const Tensor &inputShape) {
     throw std::runtime_error("Dimension mismatch in flattenBackward");
   }
 
-  Tensor dInput(inputShape.shape());
+  Tensor dInput(inputShape.getShape());
   for (size_t batch = 0; batch < batchSize; ++batch) {
     for (size_t channel = 0; channel < channels; ++channel) {
       for (size_t h = 0; h < height; ++h) {
@@ -317,7 +319,7 @@ void Conv2d::conv2dBackward(
   size_t inputHeight = input.dim(2);
   size_t inputWidth = input.dim(3);
 
-  size_t outChannels = dOut.dim(1);
+  size_t outChannelsDim = dOut.dim(1);
   size_t outputHeight = dOut.dim(2);
   size_t outputWidth = dOut.dim(3);
 
@@ -327,7 +329,7 @@ void Conv2d::conv2dBackward(
   Tensor::zeroTensor(db);
 
   for (size_t batch = 0; batch < batchSize; ++batch) {
-    for (size_t outChannel = 0; outChannel < outChannels; ++outChannel) {
+    for (size_t outChannel = 0; outChannel < outChannelsDim; ++outChannel) {
 
       for (size_t outputY = 0; outputY < outputHeight; ++outputY) {
         for (size_t outputX = 0; outputX < outputWidth; ++outputX) {
@@ -339,20 +341,24 @@ void Conv2d::conv2dBackward(
           db.flat(outChannel) += gradOut;
 
           for (size_t inChannel = 0; inChannel < inputChannels; ++inChannel) {
-            for (size_t kernelY = 0; kernelY < (size_t)kernel; ++kernelY) {
-              for (size_t kernelX = 0; kernelX < (size_t)kernel; ++kernelX) {
+            for (size_t kernelY = 0; kernelY < kernel; ++kernelY) {
+              for (size_t kernelX = 0; kernelX < kernel; ++kernelX) {
 
-                int inputY = static_cast<int>(
-                    outputY * stride + kernelY - padding);
-                int inputX = static_cast<int>(
-                    outputX * stride + kernelX - padding);
+                int inputY =
+                  static_cast<int>(outputY * stride + kernelY) -
+                  static_cast<int>(padding);
+                int inputX =
+                  static_cast<int>(outputX * stride + kernelX) -
+                  static_cast<int>(padding);
 
                 // Only propagate if inside input bounds
                 if (inputY >= 0 && inputY < (int)inputHeight &&
                     inputX >= 0 && inputX < (int)inputWidth) {
 
-                  double inputVal =
-                      input.at(batch, inChannel, inputY, inputX);
+                    double inputVal =
+                      input.at(batch, inChannel,
+                           static_cast<size_t>(inputY),
+                           static_cast<size_t>(inputX));
 
                   double weightVal =
                       W.at(outChannel, inChannel, kernelY, kernelX);
@@ -362,7 +368,9 @@ void Conv2d::conv2dBackward(
                       inputVal * gradOut;
 
                   // ---- input gradient ----
-                  dInput.at(batch, inChannel, inputY, inputX) +=
+                    dInput.at(batch, inChannel,
+                        static_cast<size_t>(inputY),
+                        static_cast<size_t>(inputX)) +=
                       weightVal * gradOut;
                 }
               }

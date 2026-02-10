@@ -4,11 +4,11 @@
 #include "matrix.h"
 #include "tensor.h"
 struct Conv2d {
-  int inChannels;
-  int outChannels;
-  int kernel;
-  int stride;
-  int padding;
+  size_t inChannels;
+  size_t outChannels;
+  size_t kernel;
+  size_t stride;
+  size_t padding;
 
   // W : [outChannels, inChannels, kernel, kernel]
   Tensor W;
@@ -42,8 +42,8 @@ struct Conv2d {
   static Tensor flattenBackward(const Tensor &dOut, const Tensor &inputShape);
   static Tensor maxPool2dBackward(const Tensor &dOut, const Tensor &input,
                                   size_t poolSize, size_t stride);
-  static void conv2dBackward(const Tensor &input, const Tensor &dOut, Tensor &dInput,
-                             Tensor &dW, Tensor &db);
+  void conv2dBackward(const Tensor &input, const Tensor &dOut, Tensor &dInput,
+                      Tensor &dW, Tensor &db);
       // this doesnt belong here ideally but we can move it later
       static void testSoftmaxCrossEntropyBackwardPerfectPrediction();
 };
