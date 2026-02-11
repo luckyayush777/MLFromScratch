@@ -1,8 +1,10 @@
 #pragma once
 #include <random>
 
+#include "layer.h"
 #include "matrix.h"
 #include "tensor.h"
+
 struct Conv2d {
   size_t inChannels;
   size_t outChannels;
@@ -48,4 +50,6 @@ struct Conv2d {
   static void testSoftmaxCrossEntropyBackwardPerfectPrediction();
   void overfitSingleBatch(Layer &fc1, Layer &fc2, const Tensor &X_img,
                           const Tensor &y, double learningRate, int steps);
+  double computeAccuracy(const Tensor &logits, const Tensor &labels);
+  size_t argmaxRow(const Tensor &logits, size_t row);
 };

@@ -9,6 +9,7 @@
 #include "stb_image_write.h"
 #include "tensor.h"
 #include "util.h"
+#include "timer.h"
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -18,14 +19,7 @@
 #include <stdexcept>
 #include <vector>
 
-void printShape(const std::string &name, const Tensor &t) {
-  const auto &s = t.getShape();
-  std::cout << name << ": [";
-  for (size_t i = 0; i < s.size(); ++i) {
-    std::cout << s[i] << (i < s.size() - 1 ? ", " : "");
-  }
-  std::cout << "]\n";
-}
+
 
 template <typename Dataset>
 static void loadBatch(const Dataset &dataset,
@@ -46,7 +40,6 @@ int main() {
   double learningRate = 0.02;
   (void)learningRate;
 
-  auto start = std::chrono::high_resolution_clock::now();
 
   std::cout << "Loading MNIST Data...\n";
   auto dataset = loadMnist("datasets/train-images-idx3-ubyte",
@@ -78,8 +71,6 @@ int main() {
   Layer fc1(flattened_dim, hidden_dim, rng);
   Layer fc2(hidden_dim, C, rng);
 
-  std::cout << "Starting Forward Pass Debug \n";
-
   Tensor X_img({B, 1, 28, 28});
   for (size_t b = 0; b < B; ++b) {
     for (size_t h = 0; h < 28; ++h) {
@@ -92,13 +83,7 @@ int main() {
     }
   }
   printShape("Input Image", X_img);
-
-  std::cout << "\nStarting single-batch overfitting test...\n";
+  Timer timer("Single batch overfitting");
   conv1.overfitSingleBatch(fc1, fc2, X_img, y, learningRate, 200);
-
-  auto end = std::chrono::high_resolution_clock::now();
-  auto duration =
-      std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-  std::cout << "Total time: " << duration.count() / 1000.0 << "s\n";
   return 0;
 }

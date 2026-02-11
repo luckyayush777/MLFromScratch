@@ -366,21 +366,16 @@ void Conv2d::conv2dBackward(const Tensor &input, const Tensor &dOut,
   }
 }
 
-void Conv2d::overfitSingleBatch(
-    Layer &fc1,
-    Layer &fc2,
-    const Tensor &X_img,
-    const Tensor &y,
-    double learningRate,
-    int steps
-) {
+void Conv2d::overfitSingleBatch(Layer &fc1, Layer &fc2, const Tensor &X_img,
+                                const Tensor &y, double learningRate,
+                                int steps) {
   size_t B = X_img.dim(0);
 
   std::cout << "Starting single-batch overfitting...\n";
 
   for (int step = 0; step < steps; ++step) {
 
-    //FORWARD
+    // FORWARD
     Tensor Z_conv = Conv2d::conv2dForward(*this, X_img);
     Tensor A_conv = Z_conv;
     Tensor::relu(A_conv);
@@ -408,12 +403,13 @@ void Conv2d::overfitSingleBatch(
     Tensor dZ_conv = Conv2d::reluBackward(Z_conv, dA_conv);
 
     Tensor dX_img({B, 1, 28, 28});
-    Tensor dW_conv({this->outChannels, this->inChannels, this->kernel, this->kernel});
+    Tensor dW_conv(
+        {this->outChannels, this->inChannels, this->kernel, this->kernel});
     Tensor db_conv({this->outChannels});
 
     this->conv2dBackward(X_img, dZ_conv, dX_img, dW_conv, db_conv);
 
-    //UPDATE
+    // UPDATE
     fc1.step(learningRate);
     fc2.step(learningRate);
 
@@ -423,14 +419,40 @@ void Conv2d::overfitSingleBatch(
     for (size_t i = 0; i < b.noOfElements(); ++i)
       b.flat(i) -= learningRate * db_conv.flat(i);
 
-    //LOGGING
+    // LOGGING
     if (step % 25 == 0) {
       double acc = computeAccuracy(logits, y);
-      std::cout << "Step " << step
-                << " | Loss: " << loss
-                << " | Acc: " << acc
+      std::cout << "Step " << step << " | Loss: " << loss << " | Acc: " << acc
                 << std::endl;
     }
   }
 }
+size_t Conv2d::argmaxRow(const Tensor &logits, size_t row) {
+  size_t best = 0;
+  double bestVal = logits.at(row, 0);
+
+  for (size_t j = 1; j < logits.dim(1); ++j) {
+    double val = logits.at(row, j);
+    if (val > bestVal) {
+      bestVal = val;
+      best = j;
+    }
+  }
+  return best;
+}
+
+double Conv2d::computeAccuracy(const Tensor &logits, const Tensor &labels) {
+  size_t correct = 0;
+  size_t total = logits.dim(0);
+
+  for (size_t i = 0; i < total; ++i) {
+    size_t predicted = argmaxRow(logits, i);
+    size_t actual = static_cast<size_t>(labels.flat(i));
+    if (predicted == actual) {
+      ++correct;
+    }
+  }
+  return static_cast<double>(correct) / static_cast<double>(total);
+}
+
 

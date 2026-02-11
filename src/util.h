@@ -2,7 +2,7 @@
 
 class Tensor;
 
-void dump_png(const Tensor &images, size_t index, const char *filename) {
+/*void dump_png(const Tensor &images, size_t index, const char *filename) {
   constexpr int W = 28;
   constexpr int H = 28;
 
@@ -17,6 +17,7 @@ void dump_png(const Tensor &images, size_t index, const char *filename) {
 
   stbi_write_png(filename, W, H, 1, buffer, W);
 }
+*/
 
 void gradientDescent(const Matrix &x, const Matrix &y, double &slope,
                      double &intercept, double learningRate,
@@ -163,33 +164,8 @@ Matrix mseBackward(const Matrix &predictions, const Matrix &targets) {
   return dA;
 }
 
-size_t argmaxRow(const Tensor &logits, size_t row) {
-  size_t best = 0;
-  double bestVal = logits.at(row, 0);
 
-  for (size_t j = 1; j < logits.dim(1); ++j) {
-    double val = logits.at(row, j);
-    if (val > bestVal) {
-      bestVal = val;
-      best = j;
-    }
-  }
-  return best;
-}
 
-double computeAccuracy(const Tensor &logits, const Tensor &labels) {
-  size_t correct = 0;
-  size_t total = logits.dim(0);
-
-  for (size_t i = 0; i < total; ++i) {
-    size_t predicted = argmaxRow(logits, i);
-    size_t actual = static_cast<size_t>(labels.flat(i));
-    if (predicted == actual) {
-      ++correct;
-    }
-  }
-  return static_cast<double>(correct) / static_cast<double>(total);
-}
 
 void forwardPropagation(const Matrix &X, const Matrix &W1, const Matrix &W2,
                         Matrix &Z1, Matrix &A1, Matrix &A2) {
@@ -240,4 +216,13 @@ void backwardPropagation(const Matrix &X, const Matrix &Y, Matrix &W1,
   sgdUpdate(W1, dW1, learningRate);
   sgdUpdate(W2, dW2, learningRate);
   std::cout << "Backward pass complete\n";
+}
+
+void printShape(const std::string &name, const Tensor &t) {
+  const auto &s = t.getShape();
+  std::cout << name << ": [";
+  for (size_t i = 0; i < s.size(); ++i) {
+    std::cout << s[i] << (i < s.size() - 1 ? ", " : "");
+  }
+  std::cout << "]\n";
 }
