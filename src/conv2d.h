@@ -4,6 +4,11 @@
 #include "layer.h"
 #include "matrix.h"
 #include "tensor.h"
+#include"mnist.h"
+
+
+struct Layer;
+struct MNISTDataset;
 
 struct Conv2d {
   size_t inChannels;
@@ -22,7 +27,8 @@ struct Conv2d {
       : inChannels(inCh), outChannels(outCh), kernel(k), stride(stride),
         padding(padding), W({outCh, inCh, k, k}), b({outCh}) {
     std::mt19937 rng(42);
-    std::normal_distribution<double> dist(0.0, 0.005);
+    double std = std::sqrt(2.0 / (inCh * k * k));
+    std::normal_distribution<double> dist(0.0, std);
     for (size_t i = 0; i < W.noOfElements(); ++i)
       W.flat(i) = dist(rng);
     for (size_t i = 0; i < b.noOfElements(); ++i)
@@ -46,6 +52,10 @@ struct Conv2d {
                                   size_t poolSize, size_t stride);
   void conv2dBackward(const Tensor &input, const Tensor &dOut, Tensor &dInput,
                       Tensor &dW, Tensor &db);
+  void trainMNIST(Layer &fc1, Layer &fc2, const MNISTDataset &dataset,
+                  const MNISTDataset &testDataset, double learningRate,
+                  size_t batchSize, size_t epochs);
+
   // this doesnt belong here ideally but we can move it later
   static void testSoftmaxCrossEntropyBackwardPerfectPrediction();
   void overfitSingleBatch(Layer &fc1, Layer &fc2, const Tensor &X_img,

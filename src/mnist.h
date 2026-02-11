@@ -14,16 +14,16 @@ inline uint32_t read_be_uint32(std::ifstream &f) {
   return x;
 }
 
-void readMnistImages(std::ifstream &img, Tensor &images, size_t numImages,
-                     size_t numRows, size_t numCols);
-void readMnistLabels(std::ifstream &lbl, Tensor &labels, size_t numLabels);
+inline void readMnistImages(std::ifstream &img, Tensor &images, size_t numImages,
+                            size_t numRows, size_t numCols);
+inline void readMnistLabels(std::ifstream &lbl, Tensor &labels, size_t numLabels);
 struct MNISTDataset {
   Tensor images; // Shape : (flat form) [num_images, 28*28]
   Tensor labels; // Shape : raw form [num_images] with values 0-9
 };
 
-MNISTDataset loadMnist(const std::string &imageFile,
-                       const std::string &labelFile) {
+inline MNISTDataset loadMnist(const std::string &imageFile,
+                              const std::string &labelFile) {
   std::ifstream img(imageFile, std::ios::binary);
   std::ifstream lbl(labelFile, std::ios::binary);
   if (!img.is_open() || !lbl.is_open()) {
@@ -61,8 +61,8 @@ MNISTDataset loadMnist(const std::string &imageFile,
   return {images, labels};
 }
 
-void readMnistImages(std::ifstream &img, Tensor &images, size_t numImages,
-                     size_t numRows, size_t numCols) {
+inline void readMnistImages(std::ifstream &img, Tensor &images, size_t numImages,
+                            size_t numRows, size_t numCols) {
   const size_t imageSize = numRows * numCols;
 
   for (size_t i = 0; i < numImages; ++i) {
@@ -76,12 +76,25 @@ void readMnistImages(std::ifstream &img, Tensor &images, size_t numImages,
   }
 }
 
-void readMnistLabels(std::ifstream &lbl, Tensor &labels, size_t numLabels) {
+inline void readMnistLabels(std::ifstream &lbl, Tensor &labels, size_t numLabels) {
   for (size_t i = 0; i < numLabels; ++i) {
     unsigned char y;
     if (!lbl.read(reinterpret_cast<char *>(&y), 1)) {
       throw std::runtime_error("Unexpected end of label file");
     }
     labels.flat(i) = static_cast<double>(y);
+  }
+}
+
+template <typename Dataset>
+void loadBatch(const Dataset &dataset, const std::vector<size_t> &indices,
+               Tensor &X, Tensor &y, size_t offset) {
+  const size_t B = X.dim(0);
+  const size_t D = X.dim(1);
+  for (size_t i = 0; i < B; ++i) {
+    const size_t idx = indices[offset + i];
+    for (size_t j = 0; j < D; ++j)
+      X.at(i, j) = dataset.images.at(idx, j);
+    y.flat(i) = dataset.labels.flat(idx);
   }
 }

@@ -8,8 +8,8 @@
 #include "mnist.h"
 #include "stb_image_write.h"
 #include "tensor.h"
-#include "util.h"
 #include "timer.h"
+#include "util.h"
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -19,27 +19,10 @@
 #include <stdexcept>
 #include <vector>
 
-
-
-template <typename Dataset>
-static void loadBatch(const Dataset &dataset,
-                      const std::vector<size_t> &indices, Tensor &X, Tensor &y,
-                      size_t offset) {
-  const size_t B = X.dim(0);
-  const size_t D = X.dim(1);
-  for (size_t i = 0; i < B; ++i) {
-    const size_t idx = indices[offset + i];
-    for (size_t j = 0; j < D; ++j)
-      X.at(i, j) = dataset.images.at(idx, j);
-    y.flat(i) = dataset.labels.flat(idx);
-  }
-}
-
 int main() {
   // hyperparameters
   double learningRate = 0.02;
   (void)learningRate;
-
 
   std::cout << "Loading MNIST Data...\n";
   auto dataset = loadMnist("datasets/train-images-idx3-ubyte",
@@ -84,6 +67,8 @@ int main() {
   }
   printShape("Input Image", X_img);
   Timer timer("Single batch overfitting");
-  conv1.overfitSingleBatch(fc1, fc2, X_img, y, learningRate, 200);
+  // conv1.overfitSingleBatch(fc1, fc2, X_img, y, learningRate, 200);
+  conv1.trainMNIST(fc1, fc2, dataset, testDataset, 0.01, 32, 3);
+
   return 0;
 }

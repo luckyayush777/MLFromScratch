@@ -1,7 +1,6 @@
 #pragma once
-#include<random>
+#include <random>
 #include "tensor.h"
-
 struct Layer {
   Tensor W, b;
   Tensor dW, db;
