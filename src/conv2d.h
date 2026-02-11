@@ -20,7 +20,7 @@ struct Conv2d {
       : inChannels(inCh), outChannels(outCh), kernel(k), stride(stride),
         padding(padding), W({outCh, inCh, k, k}), b({outCh}) {
     std::mt19937 rng(42);
-    std::normal_distribution<double> dist(0.0, 0.01);
+    std::normal_distribution<double> dist(0.0, 0.005);
     for (size_t i = 0; i < W.noOfElements(); ++i)
       W.flat(i) = dist(rng);
     for (size_t i = 0; i < b.noOfElements(); ++i)
@@ -44,6 +44,8 @@ struct Conv2d {
                                   size_t poolSize, size_t stride);
   void conv2dBackward(const Tensor &input, const Tensor &dOut, Tensor &dInput,
                       Tensor &dW, Tensor &db);
-      // this doesnt belong here ideally but we can move it later
-      static void testSoftmaxCrossEntropyBackwardPerfectPrediction();
+  // this doesnt belong here ideally but we can move it later
+  static void testSoftmaxCrossEntropyBackwardPerfectPrediction();
+  void overfitSingleBatch(Layer &fc1, Layer &fc2, const Tensor &X_img,
+                          const Tensor &y, double learningRate, int steps);
 };

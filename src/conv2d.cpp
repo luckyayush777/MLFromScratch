@@ -21,22 +21,20 @@ Tensor Conv2d::conv2dForward(const Conv2d &conv, const Tensor &input) {
   Tensor out({batchSize, conv.outChannels, outputHeight, outputWidth});
 
   for (size_t batch = 0; batch < batchSize; ++batch) {
-    for (size_t outChannel = 0; outChannel < conv.outChannels;
-         ++outChannel) {
+    for (size_t outChannel = 0; outChannel < conv.outChannels; ++outChannel) {
       for (size_t outputY = 0; outputY < outputHeight; ++outputY) {
         for (size_t outputX = 0; outputX < outputWidth; ++outputX) {
           double sum = 0.0;
           for (size_t inChannel = 0; inChannel < inputChannels; ++inChannel) {
             for (size_t kernelY = 0; kernelY < conv.kernel; ++kernelY) {
-              for (size_t kernelX = 0; kernelX < conv.kernel;
-                   ++kernelX) {
+              for (size_t kernelX = 0; kernelX < conv.kernel; ++kernelX) {
 
                 const int inputY =
-                  static_cast<int>(outputY * conv.stride + kernelY) -
-                  static_cast<int>(conv.padding);
+                    static_cast<int>(outputY * conv.stride + kernelY) -
+                    static_cast<int>(conv.padding);
                 const int inputX =
-                  static_cast<int>(outputX * conv.stride + kernelX) -
-                  static_cast<int>(conv.padding);
+                    static_cast<int>(outputX * conv.stride + kernelX) -
+                    static_cast<int>(conv.padding);
 
                 const double inputVal = conv.getPaddedInput(
                     input, batch, inChannel, inputY, inputX);
@@ -65,8 +63,7 @@ double Conv2d::getPaddedInput(const Tensor &X, size_t batch, size_t channel,
   if (h < 0 || w < 0 || h >= (int)height || w >= (int)width) {
     return 0.0; // zero padding
   }
-  return X.at(batch, channel, static_cast<size_t>(h),
-              static_cast<size_t>(w));
+  return X.at(batch, channel, static_cast<size_t>(h), static_cast<size_t>(w));
 }
 
 Tensor Conv2d::flattenForward(const Tensor &input) {
@@ -156,7 +153,7 @@ Tensor Conv2d::softmaxCrossEntropyBackward(const Tensor &logits,
   // Gradient
   for (size_t i = 0; i < B; ++i) {
     size_t y = static_cast<size_t>(targets.flat(i));
-    if(y >= C) {
+    if (y >= C) {
       throw std::runtime_error("Target class index out of bounds");
     }
     probs.at(i, y) -= 1.0;
@@ -170,26 +167,25 @@ Tensor Conv2d::softmaxCrossEntropyBackward(const Tensor &logits,
   return probs;
 }
 
-
 double Conv2d::softmaxCrossEntropyLoss(const Tensor &logits,
-                                      const Tensor &targets) {
+                                       const Tensor &targets) {
   size_t B = logits.dim(0);
   size_t C = logits.dim(1);
 
   double loss = 0.0;
 
-  for(size_t i = 0; i < B; ++i){
-    //find max logit for numerical stability
+  for (size_t i = 0; i < B; ++i) {
+    // find max logit for numerical stability
     double maxLogit = -std::numeric_limits<double>::infinity();
-    for(size_t j = 0; j < C; ++j){
+    for (size_t j = 0; j < C; ++j) {
       maxLogit = std::max(maxLogit, logits.at(i, j));
     }
     double sumExp = 0.0;
-    for(size_t j = 0; j < C; ++j){
+    for (size_t j = 0; j < C; ++j) {
       sumExp += std::exp(logits.at(i, j) - maxLogit);
     }
     size_t y = static_cast<size_t>(targets.flat(i));
-    if(y >= C) {
+    if (y >= C) {
       throw std::runtime_error("Target class index out of bounds");
     }
     loss -= std::log(std::exp(logits.at(i, y) - maxLogit) / sumExp);
@@ -198,29 +194,28 @@ double Conv2d::softmaxCrossEntropyLoss(const Tensor &logits,
 }
 
 void Conv2d::testSoftmaxCrossEntropyBackwardPerfectPrediction() {
-    Tensor logits({1, 3});
-    logits.at(0, 0) = 10.0;
-    logits.at(0, 1) = -10.0;
-    logits.at(0, 2) = -10.0;
+  Tensor logits({1, 3});
+  logits.at(0, 0) = 10.0;
+  logits.at(0, 1) = -10.0;
+  logits.at(0, 2) = -10.0;
 
-    Tensor targets({1});
-    targets.flat(0) = 0;  // correct class
+  Tensor targets({1});
+  targets.flat(0) = 0; // correct class
 
- 
-    Tensor grad = Conv2d::softmaxCrossEntropyBackward(logits, targets);
+  Tensor grad = Conv2d::softmaxCrossEntropyBackward(logits, targets);
 
-    const double eps = 1e-6;
+  const double eps = 1e-6;
 
-    for (size_t j = 0; j < 3; ++j) {
-        double g = grad.at(0, j);
-        if (std::abs(g) > eps) {
-            std::cerr << "FAILED: expected gradient 0, got "
-                      << g << " at class " << j << std::endl;
-            std::exit(1);
-        }
+  for (size_t j = 0; j < 3; ++j) {
+    double g = grad.at(0, j);
+    if (std::abs(g) > eps) {
+      std::cerr << "FAILED: expected gradient 0, got " << g << " at class " << j
+                << std::endl;
+      std::exit(1);
     }
+  }
 
-    std::cout << "PASSED: softmaxCrossEntropyBackward perfect prediction\n";
+  std::cout << "PASSED: softmaxCrossEntropyBackward perfect prediction\n";
 }
 
 Tensor Conv2d::reluBackward(const Tensor &Z, const Tensor &dA) {
@@ -260,7 +255,7 @@ Tensor Conv2d::flattenBackward(const Tensor &dOut, const Tensor &inputShape) {
 }
 
 Tensor Conv2d::maxPool2dBackward(const Tensor &dOut, const Tensor &input,
-                                  size_t poolSize, size_t stride) {
+                                 size_t poolSize, size_t stride) {
   size_t batchSize = input.dim(0);
   size_t channels = input.dim(1);
   size_t height = input.dim(2);
@@ -269,7 +264,8 @@ Tensor Conv2d::maxPool2dBackward(const Tensor &dOut, const Tensor &input,
   size_t outHeight = (height - poolSize) / stride + 1;
   size_t outWidth = (width - poolSize) / stride + 1;
 
-  if (dOut.dim(0) != batchSize || dOut.dim(1) != channels || dOut.dim(2) != outHeight || dOut.dim(3) != outWidth) {
+  if (dOut.dim(0) != batchSize || dOut.dim(1) != channels ||
+      dOut.dim(2) != outHeight || dOut.dim(3) != outWidth) {
     throw std::runtime_error("Dimension mismatch in maxPool2dBackward");
   }
 
@@ -306,14 +302,8 @@ Tensor Conv2d::maxPool2dBackward(const Tensor &dOut, const Tensor &input,
   return dInput;
 }
 
-
-void Conv2d::conv2dBackward(
-    const Tensor &input,
-    const Tensor &dOut,
-    Tensor &dInput,
-    Tensor &dW,
-    Tensor &db
-) {
+void Conv2d::conv2dBackward(const Tensor &input, const Tensor &dOut,
+                            Tensor &dInput, Tensor &dW, Tensor &db) {
   size_t batchSize = input.dim(0);
   size_t inputChannels = input.dim(1);
   size_t inputHeight = input.dim(2);
@@ -334,44 +324,38 @@ void Conv2d::conv2dBackward(
       for (size_t outputY = 0; outputY < outputHeight; ++outputY) {
         for (size_t outputX = 0; outputX < outputWidth; ++outputX) {
 
-          double gradOut =
-              dOut.at(batch, outChannel, outputY, outputX);
+          double gradOut = dOut.at(batch, outChannel, outputY, outputX);
 
-          // ---- bias gradient ----
+          // bias gradient
           db.flat(outChannel) += gradOut;
 
           for (size_t inChannel = 0; inChannel < inputChannels; ++inChannel) {
             for (size_t kernelY = 0; kernelY < kernel; ++kernelY) {
               for (size_t kernelX = 0; kernelX < kernel; ++kernelX) {
 
-                int inputY =
-                  static_cast<int>(outputY * stride + kernelY) -
-                  static_cast<int>(padding);
-                int inputX =
-                  static_cast<int>(outputX * stride + kernelX) -
-                  static_cast<int>(padding);
+                int inputY = static_cast<int>(outputY * stride + kernelY) -
+                             static_cast<int>(padding);
+                int inputX = static_cast<int>(outputX * stride + kernelX) -
+                             static_cast<int>(padding);
 
                 // Only propagate if inside input bounds
-                if (inputY >= 0 && inputY < (int)inputHeight &&
-                    inputX >= 0 && inputX < (int)inputWidth) {
+                if (inputY >= 0 && inputY < (int)inputHeight && inputX >= 0 &&
+                    inputX < (int)inputWidth) {
 
-                    double inputVal =
-                      input.at(batch, inChannel,
-                           static_cast<size_t>(inputY),
-                           static_cast<size_t>(inputX));
+                  double inputVal =
+                      input.at(batch, inChannel, static_cast<size_t>(inputY),
+                               static_cast<size_t>(inputX));
 
                   double weightVal =
                       W.at(outChannel, inChannel, kernelY, kernelX);
 
-                  // ---- weight gradient ----
+                  // weight gradient
                   dW.at(outChannel, inChannel, kernelY, kernelX) +=
                       inputVal * gradOut;
 
-                  // ---- input gradient ----
-                    dInput.at(batch, inChannel,
-                        static_cast<size_t>(inputY),
-                        static_cast<size_t>(inputX)) +=
-                      weightVal * gradOut;
+                  // input gradient
+                  dInput.at(batch, inChannel, static_cast<size_t>(inputY),
+                            static_cast<size_t>(inputX)) += weightVal * gradOut;
                 }
               }
             }
@@ -381,3 +365,72 @@ void Conv2d::conv2dBackward(
     }
   }
 }
+
+void Conv2d::overfitSingleBatch(
+    Layer &fc1,
+    Layer &fc2,
+    const Tensor &X_img,
+    const Tensor &y,
+    double learningRate,
+    int steps
+) {
+  size_t B = X_img.dim(0);
+
+  std::cout << "Starting single-batch overfitting...\n";
+
+  for (int step = 0; step < steps; ++step) {
+
+    //FORWARD
+    Tensor Z_conv = Conv2d::conv2dForward(*this, X_img);
+    Tensor A_conv = Z_conv;
+    Tensor::relu(A_conv);
+
+    Tensor Z_pool = Conv2d::maxPool2dForward(A_conv, 2, 2);
+    Tensor Z_flat = Conv2d::flattenForward(Z_pool);
+
+    Tensor Z_fc1 = fc1.forward(Z_flat);
+    Tensor A_fc1 = Z_fc1;
+    Tensor::relu(A_fc1);
+
+    Tensor logits = fc2.forward(A_fc1);
+
+    double loss = Conv2d::softmaxCrossEntropyLoss(logits, y);
+    Tensor dLogits = Conv2d::softmaxCrossEntropyBackward(logits, y);
+
+    // BACKWARD
+    Tensor dA_fc1 = fc2.backward(dLogits);
+    Tensor dZ_fc1 = Conv2d::reluBackward(Z_fc1, dA_fc1);
+
+    Tensor dZ_flat = fc1.backward(dZ_fc1);
+    Tensor dZ_pool = Conv2d::flattenBackward(dZ_flat, Z_pool);
+
+    Tensor dA_conv = Conv2d::maxPool2dBackward(dZ_pool, A_conv, 2, 2);
+    Tensor dZ_conv = Conv2d::reluBackward(Z_conv, dA_conv);
+
+    Tensor dX_img({B, 1, 28, 28});
+    Tensor dW_conv({this->outChannels, this->inChannels, this->kernel, this->kernel});
+    Tensor db_conv({this->outChannels});
+
+    this->conv2dBackward(X_img, dZ_conv, dX_img, dW_conv, db_conv);
+
+    //UPDATE
+    fc1.step(learningRate);
+    fc2.step(learningRate);
+
+    for (size_t i = 0; i < W.noOfElements(); ++i)
+      W.flat(i) -= learningRate * dW_conv.flat(i);
+
+    for (size_t i = 0; i < b.noOfElements(); ++i)
+      b.flat(i) -= learningRate * db_conv.flat(i);
+
+    //LOGGING
+    if (step % 25 == 0) {
+      double acc = computeAccuracy(logits, y);
+      std::cout << "Step " << step
+                << " | Loss: " << loss
+                << " | Acc: " << acc
+                << std::endl;
+    }
+  }
+}
+
