@@ -46,29 +46,39 @@ int main() {
 
   std::mt19937 rng(42);
 
-  Conv2d conv1(1, 8, 3, 1, 1);
+  constexpr size_t conv1InCh = 1;
+  constexpr size_t conv1OutCh = 16;
+  constexpr size_t conv1Kernel = 3;
+  constexpr size_t conv1Stride = 1;
+  constexpr size_t conv1Padding = 1;
+  Conv2d conv1(conv1InCh, conv1OutCh, conv1Kernel, conv1Stride, conv1Padding);
 
-  constexpr size_t flattened_dim = 8 * 14 * 14;
-  constexpr size_t hidden_dim = 128;
+  constexpr size_t flattenedDim = 16 * 14 * 14;
+  constexpr size_t hiddenDim = 256;
 
-  Layer fc1(flattened_dim, hidden_dim, rng);
-  Layer fc2(hidden_dim, C, rng);
+  Layer fc1(flattenedDim, hiddenDim, rng);
+  Layer fc2(hiddenDim, C, rng);
 
-  Tensor X_img({B, 1, 28, 28});
+  Tensor xImg({B, 1, 28, 28});
   for (size_t b = 0; b < B; ++b) {
     for (size_t h = 0; h < 28; ++h) {
       for (size_t w = 0; w < 28; ++w) {
 
         double pixel = X.at(b, h * 28 + w);
 
-        X_img.at(b, 0, h, w) = pixel;
+        xImg.at(b, 0, h, w) = pixel;
       }
     }
   }
-  printShape("Input Image", X_img);
-  Timer timer("Single batch overfitting");
-  // conv1.overfitSingleBatch(fc1, fc2, X_img, y, learningRate, 200);
-  conv1.trainMNIST(fc1, fc2, dataset, testDataset, 0.01, 32, 3);
+  printShape("Input Image", xImg);
+  Timer timer("Timer took: ");
+  // conv1.overfitSingleBatch(fc1, fc2, xImg, y, learningRate, 200);
+
+  double trainLR = 0.01;
+  size_t trainBatchSize = 32;
+  size_t trainEpochs = 8;
+  conv1.trainMNIST(fc1, fc2, dataset, testDataset, trainLR, trainBatchSize,
+                   trainEpochs);
 
   return 0;
 }
