@@ -361,61 +361,103 @@ Tensor Conv2d::maxPool2dBackward(const Tensor &dOut, const Tensor &input,
   return dInput;
 }
 
-void Conv2d::conv2dBackward(const Tensor &input, const Tensor &dOut,
-                            Tensor &dInput, Tensor &dW, Tensor &db) {
-  size_t batchSize = input.dim(0);
-  size_t inputChannels = input.dim(1);
-  size_t inputHeight = input.dim(2);
-  size_t inputWidth = input.dim(3);
+void Conv2d::conv2dBackward(const Tensor &inputTensor,
+                            const Tensor &dOutputTensor, Tensor &dInputTensor,
+                            Tensor &dWeightTensor, Tensor &dBiasTensor) {
+  // Dimensions
+  const size_t batchSize = inputTensor.dim(0);
+  const size_t inputChannels = inputTensor.dim(1);
+  const size_t inputHeight = inputTensor.dim(2);
+  const size_t inputWidth = inputTensor.dim(3);
 
-  size_t outChannelsDim = dOut.dim(1);
-  size_t outputHeight = dOut.dim(2);
-  size_t outputWidth = dOut.dim(3);
+  const size_t outputChannels = dOutputTensor.dim(1);
+  const size_t outputHeight = dOutputTensor.dim(2);
+  const size_t outputWidth = dOutputTensor.dim(3);
+
+  const size_t kernelSize = kernel;
+  const size_t strideSize = stride;
+  const size_t paddingSize = padding;
 
   // Zero gradients
-  Tensor::zeroTensor(dInput);
-  Tensor::zeroTensor(dW);
-  Tensor::zeroTensor(db);
+  Tensor::zeroTensor(dInputTensor);
+  Tensor::zeroTensor(dWeightTensor);
+  Tensor::zeroTensor(dBiasTensor);
 
-  for (size_t batch = 0; batch < batchSize; ++batch) {
-    for (size_t outChannel = 0; outChannel < outChannelsDim; ++outChannel) {
+  // Raw pointers for faster access
+  const double *inputData = inputTensor.raw();
+  const double *dOutputData = dOutputTensor.raw();
+  const double *weightData = W.raw();
+
+  double *dInputData = dInputTensor.raw();
+  double *dWeightData = dWeightTensor.raw();
+  double *dBiasData = dBiasTensor.raw();
+
+  // Precomputed sizes
+  const size_t inputImageSize = inputChannels * inputHeight * inputWidth;
+  const size_t outputImageSize = outputChannels * outputHeight * outputWidth;
+  const size_t weightKernelSizePerOutput =
+      inputChannels * kernelSize * kernelSize;
+
+  for (size_t batchIndex = 0; batchIndex < batchSize; ++batchIndex) {
+    const size_t inputBatchOffset = batchIndex * inputImageSize;
+    const size_t outputBatchOffset = batchIndex * outputImageSize;
+
+    for (size_t outputChannel = 0; outputChannel < outputChannels;
+         ++outputChannel) {
+      const size_t weightOutputOffset =
+          outputChannel * weightKernelSizePerOutput;
 
       for (size_t outputY = 0; outputY < outputHeight; ++outputY) {
         for (size_t outputX = 0; outputX < outputWidth; ++outputX) {
+          const size_t dOutputIndex =
+              outputBatchOffset + outputChannel * outputHeight * outputWidth +
+              outputY * outputWidth + outputX;
 
-          double gradOut = dOut.at(batch, outChannel, outputY, outputX);
+          const double gradOutputValue = dOutputData[dOutputIndex];
 
-          // bias gradient
-          db.flat(outChannel) += gradOut;
+          // Bias gradient
+          dBiasData[outputChannel] += gradOutputValue;
 
-          for (size_t inChannel = 0; inChannel < inputChannels; ++inChannel) {
-            for (size_t kernelY = 0; kernelY < kernel; ++kernelY) {
-              for (size_t kernelX = 0; kernelX < kernel; ++kernelX) {
+          for (size_t inputChannel = 0; inputChannel < inputChannels;
+               ++inputChannel) {
+            const size_t inputChannelOffset =
+                inputBatchOffset + inputChannel * inputHeight * inputWidth;
 
-                int inputY = static_cast<int>(outputY * stride + kernelY) -
-                             static_cast<int>(padding);
-                int inputX = static_cast<int>(outputX * stride + kernelX) -
-                             static_cast<int>(padding);
+            const size_t weightInputOffset =
+                weightOutputOffset + inputChannel * kernelSize * kernelSize;
 
-                // Only propagate if inside input bounds
-                if (inputY >= 0 && inputY < (int)inputHeight && inputX >= 0 &&
-                    inputX < (int)inputWidth) {
+            for (size_t kernelY = 0; kernelY < kernelSize; ++kernelY) {
+              const int inputY =
+                  static_cast<int>(outputY * strideSize + kernelY) -
+                  static_cast<int>(paddingSize);
 
-                  double inputVal =
-                      input.at(batch, inChannel, static_cast<size_t>(inputY),
-                               static_cast<size_t>(inputX));
+              if (inputY < 0 || inputY >= static_cast<int>(inputHeight))
+                continue;
 
-                  double weightVal =
-                      W.at(outChannel, inChannel, kernelY, kernelX);
+              for (size_t kernelX = 0; kernelX < kernelSize; ++kernelX) {
+                const int inputX =
+                    static_cast<int>(outputX * strideSize + kernelX) -
+                    static_cast<int>(paddingSize);
 
-                  // weight gradient
-                  dW.at(outChannel, inChannel, kernelY, kernelX) +=
-                      inputVal * gradOut;
+                if (inputX < 0 || inputX >= static_cast<int>(inputWidth))
+                  continue;
 
-                  // input gradient
-                  dInput.at(batch, inChannel, static_cast<size_t>(inputY),
-                            static_cast<size_t>(inputX)) += weightVal * gradOut;
-                }
+                const size_t inputIndex =
+                    inputChannelOffset +
+                    static_cast<size_t>(inputY) * inputWidth +
+                    static_cast<size_t>(inputX);
+
+                const size_t weightIndex =
+                    weightInputOffset + kernelY * kernelSize + kernelX;
+
+                const double inputValue = inputData[inputIndex];
+                const double weightValue = weightData[weightIndex];
+
+                // Weight gradient
+                dWeightData[weightIndex] += inputValue * gradOutputValue;
+
+                // Input gradient
+                dInputData[inputIndex] += weightValue * gradOutputValue;
               }
             }
           }
