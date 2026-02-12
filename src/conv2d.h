@@ -60,6 +60,12 @@ struct Conv2d {
                                   size_t poolSize, size_t stride);
   void conv2dBackward(const Tensor &input, const Tensor &dOut, Tensor &dInput,
                       Tensor &dW, Tensor &db);
+  static Tensor reshapeToImage(const Tensor &X, size_t batchSize);
+  double trainBatch(Layer &fc1, Layer &fc2, const Tensor &X_img,
+                    const Tensor &y, size_t batchSize, double learningRate,
+                    double beta, size_t &correct);
+  double evaluateTestSet(Layer &fc1, Layer &fc2,
+                         const MNISTDataset &testDataset);
   void trainMNIST(Layer &fc1, Layer &fc2, const MNISTDataset &dataset,
                   const MNISTDataset &testDataset, double learningRate,
                   size_t batchSize, size_t epochs, double beta);

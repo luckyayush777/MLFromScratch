@@ -368,21 +368,110 @@ void Conv2d::conv2dBackward(const Tensor &input, const Tensor &dOut,
   }
 }
 
+Tensor Conv2d::reshapeToImage(const Tensor &X, size_t batchSize) {
+  Tensor X_img({batchSize, 1, 28, 28});
+  for (size_t bi = 0; bi < batchSize; ++bi)
+    for (size_t h = 0; h < 28; ++h)
+      for (size_t w = 0; w < 28; ++w)
+        X_img.at(bi, 0, h, w) = X.at(bi, h * 28 + w);
+  return X_img;
+}
+
+double Conv2d::trainBatch(Layer &fc1, Layer &fc2, const Tensor &X_img,
+                          const Tensor &y, size_t batchSize,
+                          double learningRate, double beta, size_t &correct) {
+  // Forward
+  Tensor Z_conv = conv2dForward(*this, X_img);
+  Tensor A_conv = Z_conv;
+  Tensor::relu(A_conv);
+
+  Tensor Z_pool = maxPool2dForward(A_conv, 2, 2);
+  Tensor Z_flat = flattenForward(Z_pool);
+
+  Tensor Z_fc1 = fc1.forward(Z_flat);
+  Tensor A_fc1 = Z_fc1;
+  Tensor::relu(A_fc1);
+
+  Tensor logits = fc2.forward(A_fc1);
+
+  double loss = softmaxCrossEntropyLoss(logits, y);
+  correct = static_cast<size_t>(computeAccuracy(logits, y) * batchSize + 0.5);
+
+  // Backward
+  Tensor dLogits = softmaxCrossEntropyBackward(logits, y);
+
+  Tensor dA_fc1 = fc2.backward(dLogits);
+  Tensor dZ_fc1 = reluBackward(Z_fc1, dA_fc1);
+
+  Tensor dZ_flat = fc1.backward(dZ_fc1);
+  Tensor dZ_pool = flattenBackward(dZ_flat, Z_pool);
+
+  Tensor dA_conv = maxPool2dBackward(dZ_pool, A_conv, 2, 2);
+  Tensor dZ_conv = reluBackward(Z_conv, dA_conv);
+
+  Tensor dX_img({batchSize, 1, 28, 28});
+  Tensor dW_conv({outChannels, inChannels, kernel, kernel});
+  Tensor db_conv({outChannels});
+
+  conv2dBackward(X_img, dZ_conv, dX_img, dW_conv, db_conv);
+
+  // Update weights
+  fc1.step(learningRate, beta);
+  fc2.step(learningRate, beta);
+
+  for (size_t i = 0; i < W.noOfElements(); ++i) {
+    vW.flat(i) = beta * vW.flat(i) + dW_conv.flat(i);
+    W.flat(i) -= learningRate * vW.flat(i);
+  }
+
+  for (size_t i = 0; i < b.noOfElements(); ++i) {
+    vb.flat(i) = beta * vb.flat(i) + db_conv.flat(i);
+    b.flat(i) -= learningRate * vb.flat(i);
+  }
+
+  return loss;
+}
+
+double Conv2d::evaluateTestSet(Layer &fc1, Layer &fc2,
+                               const MNISTDataset &testDataset) {
+  size_t testSize = testDataset.labels.noOfElements();
+  size_t testCorrect = 0;
+
+  for (size_t i = 0; i < testSize; ++i) {
+    Tensor X_test({1, 28 * 28});
+    for (size_t j = 0; j < 28 * 28; ++j)
+      X_test.at(0, j) = testDataset.images.at(i, j);
+
+    Tensor X_test_img = reshapeToImage(X_test, 1);
+
+    Tensor Z_c = conv2dForward(*this, X_test_img);
+    Tensor::relu(Z_c);
+    Tensor Z_p = maxPool2dForward(Z_c, 2, 2);
+    Tensor Z_f = flattenForward(Z_p);
+    Tensor Z_h = fc1.forwardNoCache(Z_f);
+    Tensor::relu(Z_h);
+    Tensor logits_test = fc2.forwardNoCache(Z_h);
+
+    if (argmaxRow(logits_test, 0) ==
+        static_cast<size_t>(testDataset.labels.flat(i)))
+      ++testCorrect;
+  }
+
+  return static_cast<double>(testCorrect) / testSize;
+}
+
 void Conv2d::trainMNIST(Layer &fc1, Layer &fc2, const MNISTDataset &dataset,
                         const MNISTDataset &testDataset, double learningRate,
                         size_t batchSize, size_t epochs, double beta) {
   size_t trainSize = dataset.labels.noOfElements();
   std::vector<size_t> indices(trainSize);
-
   for (size_t i = 0; i < trainSize; ++i)
     indices[i] = i;
 
   std::mt19937 rng(42);
-
   std::cout << "Starting MNIST training...\n";
 
   for (size_t epoch = 0; epoch < epochs; ++epoch) {
-
     std::shuffle(indices.begin(), indices.end(), rng);
 
     double epochLoss = 0.0;
@@ -391,115 +480,32 @@ void Conv2d::trainMNIST(Layer &fc1, Layer &fc2, const MNISTDataset &dataset,
     size_t numBatches = 0;
 
     for (size_t start = 0; start < trainSize; start += batchSize) {
-
       if (start + batchSize > trainSize)
         break;
 
-      // Load batch
       Tensor X({batchSize, 28 * 28});
       Tensor y({batchSize});
       loadBatch(dataset, indices, X, y, start);
 
-      // Reshape to image
-      Tensor X_img({batchSize, 1, 28, 28});
-      for (size_t bi = 0; bi < batchSize; ++bi)
-        for (size_t h = 0; h < 28; ++h)
-          for (size_t w = 0; w < 28; ++w)
-            X_img.at(bi, 0, h, w) = X.at(bi, h * 28 + w);
+      Tensor X_img = reshapeToImage(X, batchSize);
 
-      // Forward
-      Tensor Z_conv = conv2dForward(*this, X_img);
-      Tensor A_conv = Z_conv;
-      Tensor::relu(A_conv);
+      size_t batchCorrect = 0;
+      double loss = trainBatch(fc1, fc2, X_img, y, batchSize, learningRate,
+                               beta, batchCorrect);
 
-      Tensor Z_pool = maxPool2dForward(A_conv, 2, 2);
-      Tensor Z_flat = flattenForward(Z_pool);
-
-      Tensor Z_fc1 = fc1.forward(Z_flat);
-      Tensor A_fc1 = Z_fc1;
-      Tensor::relu(A_fc1);
-
-      Tensor logits = fc2.forward(A_fc1);
-
-      double loss = softmaxCrossEntropyLoss(logits, y);
       epochLoss += loss;
-
-      totalCorrect +=
-          static_cast<size_t>(computeAccuracy(logits, y) * batchSize + 0.5);
+      totalCorrect += batchCorrect;
       totalSamples += batchSize;
-
-      Tensor dLogits = softmaxCrossEntropyBackward(logits, y);
-
-      // Backward
-      Tensor dA_fc1 = fc2.backward(dLogits);
-      Tensor dZ_fc1 = reluBackward(Z_fc1, dA_fc1);
-
-      Tensor dZ_flat = fc1.backward(dZ_fc1);
-      Tensor dZ_pool = flattenBackward(dZ_flat, Z_pool);
-
-      Tensor dA_conv = maxPool2dBackward(dZ_pool, A_conv, 2, 2);
-      Tensor dZ_conv = reluBackward(Z_conv, dA_conv);
-
-      Tensor dX_img({batchSize, 1, 28, 28});
-      Tensor dW_conv({outChannels, inChannels, kernel, kernel});
-      Tensor db_conv({outChannels});
-
-      conv2dBackward(X_img, dZ_conv, dX_img, dW_conv, db_conv);
-
-      // Update
-      fc1.step(learningRate, beta);
-      fc2.step(learningRate, beta);
-
-      for (size_t i = 0; i < W.noOfElements(); ++i) {
-        vW.flat(i) = beta * vW.flat(i) + dW_conv.flat(i);
-        W.flat(i) -= learningRate * vW.flat(i);
-      }
-
-      for (size_t i = 0; i < b.noOfElements(); ++i) {
-        vb.flat(i) = beta * vb.flat(i) + db_conv.flat(i);
-        b.flat(i) -= learningRate * vb.flat(i);
-      }
-
       numBatches++;
     }
 
     double avgLoss = epochLoss / numBatches;
     double trainAcc = static_cast<double>(totalCorrect) / totalSamples;
-
     std::cout << "Epoch " << epoch << " | Avg Loss: " << avgLoss
               << " | Train Acc: " << trainAcc << std::endl;
 
-    // Test Evaluation
     if (testDataset.labels.noOfElements() > 0) {
-      size_t testSize = testDataset.labels.noOfElements();
-      size_t testCorrect = 0;
-
-      for (size_t i = 0; i < testSize; ++i) {
-        Tensor X_test({1, 28 * 28});
-        Tensor y_test({1});
-
-        for (size_t j = 0; j < 28 * 28; ++j)
-          X_test.at(0, j) = testDataset.images.at(i, j);
-        y_test.flat(0) = testDataset.labels.flat(i);
-
-        Tensor X_test_img({1, 1, 28, 28});
-        for (size_t h = 0; h < 28; ++h)
-          for (size_t w = 0; w < 28; ++w)
-            X_test_img.at(0, 0, h, w) = X_test.at(0, h * 28 + w);
-
-        Tensor Z_c = conv2dForward(*this, X_test_img);
-        Tensor::relu(Z_c);
-        Tensor Z_p = maxPool2dForward(Z_c, 2, 2);
-        Tensor Z_f = flattenForward(Z_p);
-        Tensor Z_h = fc1.forwardNoCache(Z_f);
-        Tensor::relu(Z_h);
-        Tensor logits_test = fc2.forwardNoCache(Z_h);
-
-        if (argmaxRow(logits_test, 0) == static_cast<size_t>(y_test.flat(0)))
-          ++testCorrect;
-      }
-
-      double testAcc = static_cast<double>(testCorrect) / testSize;
+      double testAcc = evaluateTestSet(fc1, fc2, testDataset);
       std::cout << "         Test Acc: " << testAcc << std::endl;
     }
   }
