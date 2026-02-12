@@ -1,60 +1,117 @@
 #include "conv2d.h"
 
 #include <algorithm>
+#include <chrono>
 #include <iostream>
 #include <limits>
 #include <stdexcept>
 
-Tensor Conv2d::conv2dForward(const Conv2d &conv, const Tensor &input) {
-  size_t batchSize = input.dim(0);
-  size_t inputChannels = input.dim(1);
-  size_t inputHeight = input.dim(2);
-  size_t inputWidth = input.dim(3);
+Tensor Conv2d::conv2dForward(const Conv2d &convLayer,
+                             const Tensor &inputTensor) {
+  // Input dimensions
+  const size_t batchSize = inputTensor.dim(0);
+  const size_t inputChannels = inputTensor.dim(1);
+  const size_t inputHeight = inputTensor.dim(2);
+  const size_t inputWidth = inputTensor.dim(3);
 
-  // Safety check for negative dimensions
-  if (inputHeight + 2 * conv.padding < conv.kernel)
-    throw std::runtime_error("Kernel larger than padded input");
+  // Convolution parameters
+  const size_t outputChannels = convLayer.outChannels;
+  const size_t kernelSize = convLayer.kernel;
+  const size_t stride = convLayer.stride;
+  const size_t padding = convLayer.padding;
 
-  size_t outputHeight =
-      (inputHeight + 2 * conv.padding - conv.kernel) / conv.stride + 1;
-  size_t outputWidth =
-      (inputWidth + 2 * conv.padding - conv.kernel) / conv.stride + 1;
+  // Output spatial dimensions
+  const size_t outputHeight =
+      (inputHeight + 2 * padding - kernelSize) / stride + 1;
 
-  Tensor out({batchSize, conv.outChannels, outputHeight, outputWidth});
+  const size_t outputWidth =
+      (inputWidth + 2 * padding - kernelSize) / stride + 1;
 
-  for (size_t batch = 0; batch < batchSize; ++batch) {
-    for (size_t outChannel = 0; outChannel < conv.outChannels; ++outChannel) {
+  Tensor outputTensor({batchSize, outputChannels, outputHeight, outputWidth});
+
+  // Raw data pointers
+  const double *inputData = inputTensor.raw();
+  const double *weightData = convLayer.W.raw();
+  const double *biasData = convLayer.b.raw();
+  double *outputData = outputTensor.raw();
+
+  // Precomputed strides (for index calculation)
+  const size_t inputImageSize = inputChannels * inputHeight * inputWidth;
+  const size_t outputImageSize = outputChannels * outputHeight * outputWidth;
+  const size_t weightKernelSizePerOutput =
+      inputChannels * kernelSize * kernelSize;
+
+  // Main convolution loops
+  for (size_t batchIndex = 0; batchIndex < batchSize; ++batchIndex) {
+
+    const size_t inputBatchOffset = batchIndex * inputImageSize;
+    const size_t outputBatchOffset = batchIndex * outputImageSize;
+
+    for (size_t outputChannel = 0; outputChannel < outputChannels;
+         ++outputChannel) {
+
+      const size_t weightOutputChannelOffset =
+          outputChannel * weightKernelSizePerOutput;
+
       for (size_t outputY = 0; outputY < outputHeight; ++outputY) {
         for (size_t outputX = 0; outputX < outputWidth; ++outputX) {
-          double sum = 0.0;
-          for (size_t inChannel = 0; inChannel < inputChannels; ++inChannel) {
-            for (size_t kernelY = 0; kernelY < conv.kernel; ++kernelY) {
-              for (size_t kernelX = 0; kernelX < conv.kernel; ++kernelX) {
 
-                const int inputY =
-                    static_cast<int>(outputY * conv.stride + kernelY) -
-                    static_cast<int>(conv.padding);
+          double accumulatedSum = biasData[outputChannel];
+
+          // Loop over input channels
+          for (size_t inputChannel = 0; inputChannel < inputChannels;
+               ++inputChannel) {
+
+            const size_t inputChannelOffset =
+                inputBatchOffset + inputChannel * inputHeight * inputWidth;
+
+            const size_t weightInputChannelOffset =
+                weightOutputChannelOffset +
+                inputChannel * kernelSize * kernelSize;
+
+            // Loop over kernel window
+            for (size_t kernelY = 0; kernelY < kernelSize; ++kernelY) {
+
+              const int inputY = static_cast<int>(outputY * stride + kernelY) -
+                                 static_cast<int>(padding);
+
+              if (inputY < 0 || inputY >= static_cast<int>(inputHeight))
+                continue;
+
+              for (size_t kernelX = 0; kernelX < kernelSize; ++kernelX) {
+
                 const int inputX =
-                    static_cast<int>(outputX * conv.stride + kernelX) -
-                    static_cast<int>(conv.padding);
+                    static_cast<int>(outputX * stride + kernelX) -
+                    static_cast<int>(padding);
 
-                const double inputVal = conv.getPaddedInput(
-                    input, batch, inChannel, inputY, inputX);
+                if (inputX < 0 || inputX >= static_cast<int>(inputWidth))
+                  continue;
 
-                // Use 4D accessor for weights
-                const double weightVal =
-                    conv.W.at(outChannel, inChannel, kernelY, kernelX);
-                sum += inputVal * weightVal;
+                const size_t inputIndex =
+                    inputChannelOffset +
+                    static_cast<size_t>(inputY) * inputWidth +
+                    static_cast<size_t>(inputX);
+
+                const size_t weightIndex =
+                    weightInputChannelOffset + kernelY * kernelSize + kernelX;
+
+                accumulatedSum +=
+                    inputData[inputIndex] * weightData[weightIndex];
               }
             }
           }
-          sum += conv.b.flat(outChannel);
-          out.at(batch, outChannel, outputY, outputX) = sum;
+
+          const size_t outputIndex =
+              outputBatchOffset + outputChannel * outputHeight * outputWidth +
+              outputY * outputWidth + outputX;
+
+          outputData[outputIndex] = accumulatedSum;
         }
       }
     }
   }
-  return out;
+
+  return outputTensor;
 }
 
 double Conv2d::getPaddedInput(const Tensor &X, size_t batch, size_t channel,
@@ -379,8 +436,12 @@ Tensor Conv2d::reshapeToImage(const Tensor &X, size_t batchSize) {
 
 double Conv2d::trainBatch(Layer &fc1, Layer &fc2, const Tensor &X_img,
                           const Tensor &y, size_t batchSize,
-                          double learningRate, double beta, size_t &correct) {
+                          double learningRate, double beta, size_t &correct,
+                          double &fwdMs, double &bwdMs, double &updateMs) {
+  using clock = std::chrono::high_resolution_clock;
+
   // Forward
+  auto t0 = clock::now();
   Tensor Z_conv = conv2dForward(*this, X_img);
   Tensor A_conv = Z_conv;
   Tensor::relu(A_conv);
@@ -396,6 +457,7 @@ double Conv2d::trainBatch(Layer &fc1, Layer &fc2, const Tensor &X_img,
 
   double loss = softmaxCrossEntropyLoss(logits, y);
   correct = static_cast<size_t>(computeAccuracy(logits, y) * batchSize + 0.5);
+  auto t1 = clock::now();
 
   // Backward
   Tensor dLogits = softmaxCrossEntropyBackward(logits, y);
@@ -414,6 +476,7 @@ double Conv2d::trainBatch(Layer &fc1, Layer &fc2, const Tensor &X_img,
   Tensor db_conv({outChannels});
 
   conv2dBackward(X_img, dZ_conv, dX_img, dW_conv, db_conv);
+  auto t2 = clock::now();
 
   // Update weights
   fc1.step(learningRate, beta);
@@ -428,6 +491,11 @@ double Conv2d::trainBatch(Layer &fc1, Layer &fc2, const Tensor &X_img,
     vb.flat(i) = beta * vb.flat(i) + db_conv.flat(i);
     b.flat(i) -= learningRate * vb.flat(i);
   }
+  auto t3 = clock::now();
+
+  fwdMs += std::chrono::duration<double, std::milli>(t1 - t0).count();
+  bwdMs += std::chrono::duration<double, std::milli>(t2 - t1).count();
+  updateMs += std::chrono::duration<double, std::milli>(t3 - t2).count();
 
   return loss;
 }
@@ -478,6 +546,7 @@ void Conv2d::trainMNIST(Layer &fc1, Layer &fc2, const MNISTDataset &dataset,
     size_t totalCorrect = 0;
     size_t totalSamples = 0;
     size_t numBatches = 0;
+    double fwdMs = 0.0, bwdMs = 0.0, updateMs = 0.0;
 
     for (size_t start = 0; start < trainSize; start += batchSize) {
       if (start + batchSize > trainSize)
@@ -491,7 +560,7 @@ void Conv2d::trainMNIST(Layer &fc1, Layer &fc2, const MNISTDataset &dataset,
 
       size_t batchCorrect = 0;
       double loss = trainBatch(fc1, fc2, X_img, y, batchSize, learningRate,
-                               beta, batchCorrect);
+                               beta, batchCorrect, fwdMs, bwdMs, updateMs);
 
       epochLoss += loss;
       totalCorrect += batchCorrect;
@@ -503,6 +572,9 @@ void Conv2d::trainMNIST(Layer &fc1, Layer &fc2, const MNISTDataset &dataset,
     double trainAcc = static_cast<double>(totalCorrect) / totalSamples;
     std::cout << "Epoch " << epoch << " | Avg Loss: " << avgLoss
               << " | Train Acc: " << trainAcc << std::endl;
+    std::cout << "  Forward: " << fwdMs / 1000.0
+              << "s | Backward: " << bwdMs / 1000.0
+              << "s | Update: " << updateMs / 1000.0 << "s" << std::endl;
 
     if (testDataset.labels.noOfElements() > 0) {
       double testAcc = evaluateTestSet(fc1, fc2, testDataset);

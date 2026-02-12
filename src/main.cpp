@@ -33,7 +33,9 @@ int main() {
   auto testDataset = loadMnist("datasets/t10k-images-idx3-ubyte",
                                "datasets/t10k-labels-idx1-ubyte");
 
-  size_t trainSize = dataset.labels.noOfElements();
+  //size_t trainSize = dataset.labels.noOfElements();
+  //this is just to test the code on a smaller subset of the data, to speed up debugging
+  size_t trainSize = 10000; // testDataset.labels.noOfElements();
   std::vector<size_t> indices(trainSize);
   for (size_t i = 0; i < trainSize; ++i)
     indices[i] = i;
@@ -79,7 +81,7 @@ int main() {
 
   double trainLR = 0.01;
   size_t trainBatchSize = 32;
-  size_t trainEpochs = 8;
+  size_t trainEpochs = 3;
   
   conv1.trainMNIST(fc1, fc2, dataset, testDataset, trainLR, trainBatchSize,
                    trainEpochs, beta);

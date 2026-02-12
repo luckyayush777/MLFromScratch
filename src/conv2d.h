@@ -63,7 +63,8 @@ struct Conv2d {
   static Tensor reshapeToImage(const Tensor &X, size_t batchSize);
   double trainBatch(Layer &fc1, Layer &fc2, const Tensor &X_img,
                     const Tensor &y, size_t batchSize, double learningRate,
-                    double beta, size_t &correct);
+                    double beta, size_t &correct,
+                    double &fwdMs, double &bwdMs, double &updateMs);
   double evaluateTestSet(Layer &fc1, Layer &fc2,
                          const MNISTDataset &testDataset);
   void trainMNIST(Layer &fc1, Layer &fc2, const MNISTDataset &dataset,
