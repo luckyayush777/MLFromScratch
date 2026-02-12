@@ -21,11 +21,15 @@ struct Conv2d {
   Tensor W;
   Tensor b;
 
+  //velocities for momentum
+  Tensor vW;
+  Tensor vb;
+
   Tensor X_cache; // [batch, Channels, Height, Width]
 
   Conv2d(size_t inCh, size_t outCh, size_t k, size_t stride, size_t padding)
       : inChannels(inCh), outChannels(outCh), kernel(k), stride(stride),
-        padding(padding), W({outCh, inCh, k, k}), b({outCh}) {
+        padding(padding), W({outCh, inCh, k, k}), b({outCh}), vW({outCh, inCh, k, k}), vb({outCh}) {
     std::mt19937 rng(42);
     double std = std::sqrt(2.0 / (inCh * k * k));
     std::normal_distribution<double> dist(0.0, std);
@@ -33,6 +37,10 @@ struct Conv2d {
       W.flat(i) = dist(rng);
     for (size_t i = 0; i < b.noOfElements(); ++i)
       b.flat(i) = 0.0;
+    for (size_t i = 0; i < vW.noOfElements(); ++i)
+      vW.flat(i) = 0.0;
+    for (size_t i = 0; i < vb.noOfElements(); ++i)
+      vb.flat(i) = 0.0;
   }
 
   double getPaddedInput(const Tensor &X, size_t batch, size_t channel, int h,
@@ -54,7 +62,7 @@ struct Conv2d {
                       Tensor &dW, Tensor &db);
   void trainMNIST(Layer &fc1, Layer &fc2, const MNISTDataset &dataset,
                   const MNISTDataset &testDataset, double learningRate,
-                  size_t batchSize, size_t epochs);
+                  size_t batchSize, size_t epochs, double beta);
 
   // this doesnt belong here ideally but we can move it later
   static void testSoftmaxCrossEntropyBackwardPerfectPrediction();

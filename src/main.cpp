@@ -23,6 +23,9 @@ int main() {
   // hyperparameters
   double learningRate = 0.02;
   (void)learningRate;
+  double beta = 0.9;
+  (void)beta;
+
 
   std::cout << "Loading MNIST Data...\n";
   auto dataset = loadMnist("datasets/train-images-idx3-ubyte",
@@ -77,8 +80,9 @@ int main() {
   double trainLR = 0.01;
   size_t trainBatchSize = 32;
   size_t trainEpochs = 8;
+  
   conv1.trainMNIST(fc1, fc2, dataset, testDataset, trainLR, trainBatchSize,
-                   trainEpochs);
+                   trainEpochs, beta);
 
   return 0;
 }

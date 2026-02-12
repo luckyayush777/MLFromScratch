@@ -370,7 +370,7 @@ void Conv2d::conv2dBackward(const Tensor &input, const Tensor &dOut,
 
 void Conv2d::trainMNIST(Layer &fc1, Layer &fc2, const MNISTDataset &dataset,
                         const MNISTDataset &testDataset, double learningRate,
-                        size_t batchSize, size_t epochs) {
+                        size_t batchSize, size_t epochs, double beta) {
   size_t trainSize = dataset.labels.noOfElements();
   std::vector<size_t> indices(trainSize);
 
@@ -447,14 +447,18 @@ void Conv2d::trainMNIST(Layer &fc1, Layer &fc2, const MNISTDataset &dataset,
       conv2dBackward(X_img, dZ_conv, dX_img, dW_conv, db_conv);
 
       // Update
-      fc1.step(learningRate);
-      fc2.step(learningRate);
+      fc1.step(learningRate, beta);
+      fc2.step(learningRate, beta);
 
-      for (size_t i = 0; i < W.noOfElements(); ++i)
-        W.flat(i) -= learningRate * dW_conv.flat(i);
+      for (size_t i = 0; i < W.noOfElements(); ++i) {
+        vW.flat(i) = beta * vW.flat(i) + dW_conv.flat(i);
+        W.flat(i) -= learningRate * vW.flat(i);
+      }
 
-      for (size_t i = 0; i < b.noOfElements(); ++i)
-        b.flat(i) -= learningRate * db_conv.flat(i);
+      for (size_t i = 0; i < b.noOfElements(); ++i) {
+        vb.flat(i) = beta * vb.flat(i) + db_conv.flat(i);
+        b.flat(i) -= learningRate * vb.flat(i);
+      }
 
       numBatches++;
     }
@@ -545,8 +549,8 @@ void Conv2d::overfitSingleBatch(Layer &fc1, Layer &fc2, const Tensor &X_img,
     this->conv2dBackward(X_img, dZ_conv, dX_img, dW_conv, db_conv);
 
     // UPDATE
-    fc1.step(learningRate);
-    fc2.step(learningRate);
+    fc1.step(learningRate, 0.0);
+    fc2.step(learningRate, 0.0);
 
     for (size_t i = 0; i < W.noOfElements(); ++i)
       W.flat(i) -= learningRate * dW_conv.flat(i);
