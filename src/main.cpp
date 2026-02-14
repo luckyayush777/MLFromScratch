@@ -6,10 +6,10 @@
 #include "layer.h"
 #include "matrix.h"
 #include "mnist.h"
-#include "run_logger.h"
 #include "stb_image_write.h"
 #include "tensor.h"
-#include "timer.h"
+#include "training_config.h"
+#include "training_run_logging.h"
 #include "util.h"
 #include <algorithm>
 #include <chrono>
@@ -21,11 +21,8 @@
 #include <vector>
 
 int main() {
-  // hyperparameters
-  double learningRate = 0.02;
-  (void)learningRate;
-  double beta = 0.9;
-  (void)beta;
+  //config has defaults for hyperparameters 
+  TrainingConfig config;
 
 
   std::cout << "Loading MNIST Data...\n";
@@ -41,7 +38,7 @@ int main() {
   for (size_t i = 0; i < trainSize; ++i)
     indices[i] = i;
 
-  constexpr size_t B = 32;      // batch size
+  const size_t B = config.batchSize;
   constexpr size_t D = 28 * 28; // input dimension (flat)
   constexpr size_t C = 10;      // number of classes
 
@@ -50,7 +47,7 @@ int main() {
 
   loadBatch(dataset, indices, X, y, 0);
 
-  std::mt19937 rng(42);
+  std::mt19937 rng(config.seed);
 
   constexpr size_t conv1InCh = 1;
   constexpr size_t conv1OutCh = 16;
@@ -79,44 +76,15 @@ int main() {
   printShape("Input Image", xImg);
   // conv1.overfitSingleBatch(fc1, fc2, xImg, y, learningRate, 200);
 
-  double trainLR = 0.01;
-  size_t trainBatchSize = 32;
-  size_t trainEpochs = 3;
+  TrainingRunLoggingSession loggingSession(
+      config.optimizationTitle, conv1, fc1, fc2, C,
+      dataset.labels.noOfElements(), testDataset.labels.noOfElements(),
+      config.learningRate, config.beta, config.batchSize, config.epochs,
+      config.seed);
 
-  const std::string optimizationTitle =
-      "Momentum(beta=0.9) + ReLU + MaxPool baseline";
-  TrainingRunSummary runSummary;
-
-  TrainingRunLogConfig logConfig;
-  logConfig.optimizationTitle = optimizationTitle;
-  logConfig.logFilePath = "observations/training_runs.txt";
-  logConfig.inputChannels = 1;
-  logConfig.inputHeight = 28;
-  logConfig.inputWidth = 28;
-  logConfig.numClasses = C;
-  logConfig.trainSamples = dataset.labels.noOfElements();
-  logConfig.testSamples = testDataset.labels.noOfElements();
-  logConfig.learningRate = trainLR;
-  logConfig.beta = beta;
-  logConfig.batchSize = trainBatchSize;
-  logConfig.epochs = trainEpochs;
-  logConfig.seed = 42;
-
-  Timer timer("Training run", [&logConfig, &conv1, &fc1, &fc2, &runSummary](
-                                  double elapsedSeconds) {
-    bool logged = appendTrainingRunLog(logConfig, conv1, fc1, fc2, runSummary,
-                                       elapsedSeconds);
-    if (logged) {
-      std::cout << "Training log appended to " << logConfig.logFilePath
-                << "\n";
-    } else {
-      std::cerr << "Failed to write training log to " << logConfig.logFilePath
-                << "\n";
-    }
-  });
-  
-  conv1.trainMNIST(fc1, fc2, dataset, testDataset, trainLR, trainBatchSize,
-                   trainEpochs, beta, &runSummary);
+    conv1.trainMNIST(fc1, fc2, dataset, testDataset, config.learningRate,
+             config.batchSize, config.epochs, config.beta,
+             &loggingSession.summary());
 
   return 0;
 }

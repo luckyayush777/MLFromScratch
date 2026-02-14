@@ -46,82 +46,125 @@ inline std::string currentTimestamp() {
   return oss.str();
 }
 
-inline bool appendTrainingRunLog(const TrainingRunLogConfig &config,
-                                 const Conv2d &conv1,
-                                 const Layer &fc1,
-                                 const Layer &fc2,
-                                 const TrainingRunSummary &summary,
-                                 double elapsedSeconds) {
-  std::filesystem::path outputPath(config.logFilePath);
+inline std::filesystem::path findProjectRootFromCurrentPath() {
+  std::filesystem::path cursor = std::filesystem::current_path();
+
+  while (!cursor.empty()) {
+    const auto cmakePath = cursor / "CMakeLists.txt";
+    const auto srcPath = cursor / "src";
+
+    if (std::filesystem::exists(cmakePath) &&
+        std::filesystem::exists(srcPath)) {
+      return cursor;
+    }
+
+    if (cursor == cursor.root_path()) {
+      break;
+    }
+    cursor = cursor.parent_path();
+  }
+
+  return {};
+}
+
+inline bool appendLogEntryToPath(const std::filesystem::path &outputPath,
+                                 const std::string &entry) {
+  if (outputPath.empty()) {
+    return false;
+  }
+
   if (outputPath.has_parent_path()) {
     std::filesystem::create_directories(outputPath.parent_path());
   }
 
-  std::ofstream out(config.logFilePath, std::ios::app);
+  std::ofstream out(outputPath, std::ios::app);
   if (!out.is_open()) {
     return false;
   }
 
-  const size_t flattenedDim = config.inputChannels * config.inputHeight *
-                              config.inputWidth;
+  out << entry;
+  return true;
+}
 
-  out << "============================================================\n";
-  out << "Timestamp: " << currentTimestamp() << "\n";
-  out << "Optimization Title: " << config.optimizationTitle << "\n";
-  out << "\n";
-  out << "[Training Time]\n";
-  out << "Elapsed Seconds: " << std::fixed << std::setprecision(3)
+inline bool appendTrainingRunLog(const TrainingRunLogConfig &config,
+                                 const Conv2d &conv1, const Layer &fc1,
+                                 const Layer &fc2,
+                                 const TrainingRunSummary &summary,
+                                 double elapsedSeconds) {
+  std::ostringstream log;
+
+  const size_t flattenedDim =
+      config.inputChannels * config.inputHeight * config.inputWidth;
+
+  log << "============================================================\n";
+  log << "Timestamp: " << currentTimestamp() << "\n";
+  log << "Optimization Title: " << config.optimizationTitle << "\n";
+  log << "\n";
+  log << "[Training Time]\n";
+  log << "Elapsed Seconds: " << std::fixed << std::setprecision(3)
       << elapsedSeconds << "\n";
-  out << "\n";
-  out << "[Data]\n";
-  out << "Input: " << config.inputChannels << "x" << config.inputHeight
-      << "x" << config.inputWidth << " (flattened: " << flattenedDim
-      << ")\n";
-  out << "Classes: " << config.numClasses << "\n";
-  out << "Train Samples: " << config.trainSamples << "\n";
-  out << "Test Samples: " << config.testSamples << "\n";
-  out << "\n";
-  out << "[Hyperparameters]\n";
-  out << "Learning Rate: " << config.learningRate << "\n";
-  out << "Momentum Beta: " << config.beta << "\n";
-  out << "Batch Size: " << config.batchSize << "\n";
-  out << "Epochs: " << config.epochs << "\n";
-  out << "Seed: " << config.seed << "\n";
-  out << "\n";
-  out << "[Model]\n";
-  out << "Layer 1: Conv2d"
+  log << "\n";
+  log << "[Data]\n";
+  log << "Input: " << config.inputChannels << "x" << config.inputHeight << "x"
+      << config.inputWidth << " (flattened: " << flattenedDim << ")\n";
+  log << "Classes: " << config.numClasses << "\n";
+  log << "Train Samples: " << config.trainSamples << "\n";
+  log << "Test Samples: " << config.testSamples << "\n";
+  log << "\n";
+  log << "[Hyperparameters]\n";
+  log << "Learning Rate: " << config.learningRate << "\n";
+  log << "Momentum Beta: " << config.beta << "\n";
+  log << "Batch Size: " << config.batchSize << "\n";
+  log << "Epochs: " << config.epochs << "\n";
+  log << "Seed: " << config.seed << "\n";
+  log << "\n";
+  log << "[Model]\n";
+  log << "Layer 1: Conv2d"
       << " | in_ch=" << conv1.inChannels << " out_ch=" << conv1.outChannels
       << " kernel=" << conv1.kernel << " stride=" << conv1.stride
       << " padding=" << conv1.padding << "\n";
-  out << "Layer 2: ReLU\n";
-  out << "Layer 3: MaxPool2d | pool=2 stride=2\n";
-  out << "Layer 4: Flatten\n";
-  out << "Layer 5: Linear"
+  log << "Layer 2: ReLU\n";
+  log << "Layer 3: MaxPool2d | pool=2 stride=2\n";
+  log << "Layer 4: Flatten\n";
+  log << "Layer 5: Linear"
       << " | in=" << fc1.W.dim(0) << " out=" << fc1.W.dim(1) << "\n";
-  out << "Layer 6: ReLU\n";
-  out << "Layer 7: Linear"
+  log << "Layer 6: ReLU\n";
+  log << "Layer 7: Linear"
       << " | in=" << fc2.W.dim(0) << " out=" << fc2.W.dim(1) << "\n";
-  out << "Layer 8: Softmax + CrossEntropy\n";
-  out << "\n";
-  out << "[Final Metrics]\n";
-  out << "Completed Epochs: " << summary.completedEpochs << "\n";
-  out << "Final Avg Loss: " << summary.finalAvgLoss << "\n";
-  out << "Final Train Accuracy: " << summary.finalTrainAcc << "\n";
-  out << "Final Test Accuracy: " << summary.finalTestAcc << "\n";
-  out << "\n";
+  log << "Layer 8: Softmax + CrossEntropy\n";
+  log << "\n";
+  log << "[Final Metrics]\n";
+  log << "Completed Epochs: " << summary.completedEpochs << "\n";
+  log << "Final Avg Loss: " << summary.finalAvgLoss << "\n";
+  log << "Final Train Accuracy: " << summary.finalTrainAcc << "\n";
+  log << "Final Test Accuracy: " << summary.finalTestAcc << "\n";
+  log << "\n";
 
-  out << "[Epoch Logs]\n";
+  log << "[Epoch Logs]\n";
   for (const auto &epoch : summary.epochStats) {
-    out << "Epoch " << epoch.epochIndex << " | Avg Loss: " << epoch.avgLoss
+    log << "Epoch " << epoch.epochIndex << " | Avg Loss: " << epoch.avgLoss
         << " | Train Acc: " << epoch.trainAcc << "\n";
-    out << "  Forward: " << epoch.forwardSeconds
+    log << "  Forward: " << epoch.forwardSeconds
         << "s | Backward: " << epoch.backwardSeconds
         << "s | Update: " << epoch.updateSeconds << "s\n";
     if (epoch.testAcc >= 0.0) {
-      out << "         Test Acc: " << epoch.testAcc << "\n";
+      log << "         Test Acc: " << epoch.testAcc << "\n";
     }
   }
-  out << "\n";
+  log << "\n";
 
-  return true;
+  bool wroteConfiguredPath = appendLogEntryToPath(
+      std::filesystem::path(config.logFilePath), log.str());
+
+  const std::filesystem::path projectRoot = findProjectRootFromCurrentPath();
+  bool wroteRootMirror = false;
+  if (!projectRoot.empty()) {
+    const std::filesystem::path rootMirrorPath =
+        projectRoot / "observations" / "training_runs.txt";
+    if (rootMirrorPath != std::filesystem::path(config.logFilePath)) {
+      wroteRootMirror = appendLogEntryToPath(rootMirrorPath, log.str());
+    }
+  }
+
+  return wroteConfiguredPath || wroteRootMirror;
 }
