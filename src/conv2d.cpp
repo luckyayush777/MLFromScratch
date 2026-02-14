@@ -572,7 +572,8 @@ double Conv2d::evaluateTestSet(Layer &fc1, Layer &fc2,
 
 void Conv2d::trainMNIST(Layer &fc1, Layer &fc2, const MNISTDataset &dataset,
                         const MNISTDataset &testDataset, double learningRate,
-                        size_t batchSize, size_t epochs, double beta) {
+                        size_t batchSize, size_t epochs, double beta,
+                        TrainingRunSummary *summary) {
   size_t trainSize = dataset.labels.noOfElements();
   std::vector<size_t> indices(trainSize);
   for (size_t i = 0; i < trainSize; ++i)
@@ -580,6 +581,14 @@ void Conv2d::trainMNIST(Layer &fc1, Layer &fc2, const MNISTDataset &dataset,
 
   std::mt19937 rng(42);
   std::cout << "Starting MNIST training...\n";
+
+  double finalAvgLoss = 0.0;
+  double finalTrainAcc = 0.0;
+  double finalTestAcc = -1.0;
+
+  if (summary != nullptr) {
+    summary->epochStats.clear();
+  }
 
   for (size_t epoch = 0; epoch < epochs; ++epoch) {
     std::shuffle(indices.begin(), indices.end(), rng);
@@ -618,10 +627,35 @@ void Conv2d::trainMNIST(Layer &fc1, Layer &fc2, const MNISTDataset &dataset,
               << "s | Backward: " << bwdMs / 1000.0
               << "s | Update: " << updateMs / 1000.0 << "s" << std::endl;
 
+    double epochTestAcc = -1.0;
     if (testDataset.labels.noOfElements() > 0) {
       double testAcc = evaluateTestSet(fc1, fc2, testDataset);
       std::cout << "         Test Acc: " << testAcc << std::endl;
+      finalTestAcc = testAcc;
+      epochTestAcc = testAcc;
     }
+
+    if (summary != nullptr) {
+      EpochTrainingStats epochStats;
+      epochStats.epochIndex = epoch;
+      epochStats.avgLoss = avgLoss;
+      epochStats.trainAcc = trainAcc;
+      epochStats.forwardSeconds = fwdMs / 1000.0;
+      epochStats.backwardSeconds = bwdMs / 1000.0;
+      epochStats.updateSeconds = updateMs / 1000.0;
+      epochStats.testAcc = epochTestAcc;
+      summary->epochStats.push_back(epochStats);
+    }
+
+    finalAvgLoss = avgLoss;
+    finalTrainAcc = trainAcc;
+  }
+
+  if (summary != nullptr) {
+    summary->finalAvgLoss = finalAvgLoss;
+    summary->finalTrainAcc = finalTrainAcc;
+    summary->finalTestAcc = finalTestAcc;
+    summary->completedEpochs = epochs;
   }
 }
 

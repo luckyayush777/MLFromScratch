@@ -1,5 +1,6 @@
 #pragma once
 #include <random>
+#include <vector>
 
 #include "layer.h"
 #include "matrix.h"
@@ -9,6 +10,24 @@
 
 struct Layer;
 struct MNISTDataset;
+
+struct EpochTrainingStats {
+  size_t epochIndex = 0;
+  double avgLoss = 0.0;
+  double trainAcc = 0.0;
+  double forwardSeconds = 0.0;
+  double backwardSeconds = 0.0;
+  double updateSeconds = 0.0;
+  double testAcc = -1.0;
+};
+
+struct TrainingRunSummary {
+  double finalAvgLoss = 0.0;
+  double finalTrainAcc = 0.0;
+  double finalTestAcc = -1.0;
+  size_t completedEpochs = 0;
+  std::vector<EpochTrainingStats> epochStats;
+};
 
 struct Conv2d {
   size_t inChannels;
@@ -69,7 +88,8 @@ struct Conv2d {
                          const MNISTDataset &testDataset);
   void trainMNIST(Layer &fc1, Layer &fc2, const MNISTDataset &dataset,
                   const MNISTDataset &testDataset, double learningRate,
-                  size_t batchSize, size_t epochs, double beta);
+                  size_t batchSize, size_t epochs, double beta,
+                  TrainingRunSummary *summary = nullptr);
 
   // this doesnt belong here ideally but we can move it later
   static void testSoftmaxCrossEntropyBackwardPerfectPrediction();

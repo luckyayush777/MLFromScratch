@@ -6,6 +6,7 @@
 #include "layer.h"
 #include "matrix.h"
 #include "mnist.h"
+#include "run_logger.h"
 #include "stb_image_write.h"
 #include "tensor.h"
 #include "timer.h"
@@ -76,15 +77,46 @@ int main() {
     }
   }
   printShape("Input Image", xImg);
-  Timer timer("Timer took: ");
   // conv1.overfitSingleBatch(fc1, fc2, xImg, y, learningRate, 200);
 
   double trainLR = 0.01;
   size_t trainBatchSize = 32;
   size_t trainEpochs = 3;
+
+  const std::string optimizationTitle =
+      "Momentum(beta=0.9) + ReLU + MaxPool baseline";
+  TrainingRunSummary runSummary;
+
+  TrainingRunLogConfig logConfig;
+  logConfig.optimizationTitle = optimizationTitle;
+  logConfig.logFilePath = "observations/training_runs.txt";
+  logConfig.inputChannels = 1;
+  logConfig.inputHeight = 28;
+  logConfig.inputWidth = 28;
+  logConfig.numClasses = C;
+  logConfig.trainSamples = dataset.labels.noOfElements();
+  logConfig.testSamples = testDataset.labels.noOfElements();
+  logConfig.learningRate = trainLR;
+  logConfig.beta = beta;
+  logConfig.batchSize = trainBatchSize;
+  logConfig.epochs = trainEpochs;
+  logConfig.seed = 42;
+
+  Timer timer("Training run", [&logConfig, &conv1, &fc1, &fc2, &runSummary](
+                                  double elapsedSeconds) {
+    bool logged = appendTrainingRunLog(logConfig, conv1, fc1, fc2, runSummary,
+                                       elapsedSeconds);
+    if (logged) {
+      std::cout << "Training log appended to " << logConfig.logFilePath
+                << "\n";
+    } else {
+      std::cerr << "Failed to write training log to " << logConfig.logFilePath
+                << "\n";
+    }
+  });
   
   conv1.trainMNIST(fc1, fc2, dataset, testDataset, trainLR, trainBatchSize,
-                   trainEpochs, beta);
+                   trainEpochs, beta, &runSummary);
 
   return 0;
 }
