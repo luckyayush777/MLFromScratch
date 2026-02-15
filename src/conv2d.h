@@ -43,15 +43,15 @@ struct BatchTimingStats {
   double updateMs = 0.0;
 
   void print() const {
-    std::cout << "  [Forward]  conv2d: " << conv2dFwdMs << "ms | relu: " << reluFwdMs
-              << "ms | pool: " << poolFwdMs << "ms | flatten: " << flattenFwdMs
-              << "ms | fc1: " << fc1FwdMs << "ms | fc2: " << fc2FwdMs
-              << "ms | loss: " << lossFwdMs << "ms\n";
-    std::cout << "  [Backward] softmax: " << softmaxBwdMs << "ms | fc2: " << fc2BwdMs
-              << "ms | relu1: " << reluBwd1Ms << "ms | fc1: " << fc1BwdMs
-              << "ms | flatten: " << flattenBwdMs << "ms | pool: " << poolBwdMs
-              << "ms | relu2: " << reluBwd2Ms << "ms | conv2d: " << conv2dBwdMs << "ms\n";
-    std::cout << "  [Update]   " << updateMs << "ms\n";
+    std::cout << "  [Forward]  conv2d: " << conv2dFwdMs / 1000.0 << "s | relu: " << reluFwdMs / 1000.0
+              << "s | pool: " << poolFwdMs / 1000.0 << "s | flatten: " << flattenFwdMs / 1000.0
+              << "s | fc1: " << fc1FwdMs / 1000.0 << "s | fc2: " << fc2FwdMs / 1000.0
+              << "s | loss: " << lossFwdMs / 1000.0 << "s\n";
+    std::cout << "  [Backward] softmax: " << softmaxBwdMs / 1000.0 << "s | fc2: " << fc2BwdMs / 1000.0
+              << "s | relu1: " << reluBwd1Ms / 1000.0 << "s | fc1: " << fc1BwdMs / 1000.0
+              << "s | flatten: " << flattenBwdMs / 1000.0 << "s | pool: " << poolBwdMs / 1000.0
+              << "s | relu2: " << reluBwd2Ms / 1000.0 << "s | conv2d: " << conv2dBwdMs / 1000.0 << "s\n";
+    std::cout << "  [Update]   " << updateMs / 1000.0 << "s\n";
   }
 };
 
