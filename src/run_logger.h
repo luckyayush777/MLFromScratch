@@ -165,6 +165,16 @@ inline bool appendTrainingRunLog(const TrainingRunLogConfig &config,
     log << "  Forward: " << epoch.forwardSeconds
         << "s | Backward: " << epoch.backwardSeconds
         << "s | Update: " << epoch.updateSeconds << "s\n";
+    const auto &t = epoch.timing;
+    log << "  [Forward]  conv2d: " << t.conv2dFwdMs / 1000.0 << "s | relu: " << t.reluFwdMs / 1000.0
+        << "s | pool: " << t.poolFwdMs / 1000.0 << "s | flatten: " << t.flattenFwdMs / 1000.0
+        << "s | fc1: " << t.fc1FwdMs / 1000.0 << "s | fc2: " << t.fc2FwdMs / 1000.0
+        << "s | loss: " << t.lossFwdMs / 1000.0 << "s\n";
+    log << "  [Backward] softmax: " << t.softmaxBwdMs / 1000.0 << "s | fc2: " << t.fc2BwdMs / 1000.0
+        << "s | relu1: " << t.reluBwd1Ms / 1000.0 << "s | fc1: " << t.fc1BwdMs / 1000.0
+        << "s | flatten: " << t.flattenBwdMs / 1000.0 << "s | pool: " << t.poolBwdMs / 1000.0
+        << "s | relu2: " << t.reluBwd2Ms / 1000.0 << "s | conv2d: " << t.conv2dBwdMs / 1000.0 << "s\n";
+    log << "  [Update]   " << t.updateMs / 1000.0 << "s\n";
     if (epoch.testAcc >= 0.0) {
       log << "         Test Acc: " << epoch.testAcc << "\n";
     }

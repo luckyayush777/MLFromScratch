@@ -705,6 +705,7 @@ void Conv2d::trainMNIST(Layer &fc1, Layer &fc2, const MNISTDataset &dataset,
       epochStats.backwardSeconds = bwdMs / 1000.0;
       epochStats.updateSeconds = updateMs / 1000.0;
       epochStats.testAcc = epochTestAcc;
+      epochStats.timing = timing;
       summary->epochStats.push_back(epochStats);
     }
 

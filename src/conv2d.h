@@ -12,16 +12,6 @@
 struct Layer;
 struct MNISTDataset;
 
-struct EpochTrainingStats {
-  size_t epochIndex = 0;
-  double avgLoss = 0.0;
-  double trainAcc = 0.0;
-  double forwardSeconds = 0.0;
-  double backwardSeconds = 0.0;
-  double updateSeconds = 0.0;
-  double testAcc = -1.0;
-};
-
 struct BatchTimingStats {
   double conv2dFwdMs = 0.0;
   double reluFwdMs = 0.0;
@@ -53,6 +43,17 @@ struct BatchTimingStats {
               << "s | relu2: " << reluBwd2Ms / 1000.0 << "s | conv2d: " << conv2dBwdMs / 1000.0 << "s\n";
     std::cout << "  [Update]   " << updateMs / 1000.0 << "s\n";
   }
+};
+
+struct EpochTrainingStats {
+  size_t epochIndex = 0;
+  double avgLoss = 0.0;
+  double trainAcc = 0.0;
+  double forwardSeconds = 0.0;
+  double backwardSeconds = 0.0;
+  double updateSeconds = 0.0;
+  double testAcc = -1.0;
+  BatchTimingStats timing;
 };
 
 struct TrainingRunSummary {
