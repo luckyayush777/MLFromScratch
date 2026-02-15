@@ -1,4 +1,157 @@
 ============================================================
+Timestamp: 2026-02-15 23:51:42
+Optimization Title: Momentum(beta=0.9) + ReLU + MaxPool baseline
+
+[Training Time]
+Elapsed Seconds: 779.673
+
+[Data]
+Input: 1x28x28 (flattened: 784)
+Classes: 10
+Train Samples: 60000
+Test Samples: 10000
+
+[Hyperparameters]
+Learning Rate: 0.010
+Momentum Beta: 0.900
+Batch Size: 64
+Epochs: 3
+Seed: 42
+
+[Parallelization]
+OpenMP Enabled: Yes
+Threads: 1
+
+[Model]
+Layer 1: Conv2d | in_ch=1 out_ch=16 kernel=3 stride=1 padding=1
+Layer 2: ReLU
+Layer 3: MaxPool2d | pool=2 stride=2
+Layer 4: Flatten
+Layer 5: Linear | in=3136 out=256
+Layer 6: ReLU
+Layer 7: Linear | in=256 out=10
+Layer 8: Softmax + CrossEntropy
+
+[Final Metrics]
+Completed Epochs: 3
+Final Avg Loss: 0.274
+Final Train Accuracy: 0.901
+Final Test Accuracy: 0.894
+
+[Epoch Logs]
+Epoch 0 | Avg Loss: 0.459 | Train Acc: 0.837
+  Forward: 102.350s | Backward: 139.379s | Update: 1.107s
+         Test Acc: 0.862
+Epoch 1 | Avg Loss: 0.314 | Train Acc: 0.888
+  Forward: 102.163s | Backward: 138.730s | Update: 1.089s
+         Test Acc: 0.878
+Epoch 2 | Avg Loss: 0.274 | Train Acc: 0.901
+  Forward: 102.196s | Backward: 139.504s | Update: 1.105s
+         Test Acc: 0.894
+
+============================================================
+Timestamp: 2026-02-15 23:08:56
+Optimization Title: Momentum(beta=0.9) + ReLU + MaxPool baseline
+
+[Training Time]
+Elapsed Seconds: 780.145
+
+[Data]
+Input: 1x28x28 (flattened: 784)
+Classes: 10
+Train Samples: 60000
+Test Samples: 10000
+
+[Hyperparameters]
+Learning Rate: 0.010
+Momentum Beta: 0.900
+Batch Size: 64
+Epochs: 3
+Seed: 42
+
+[Parallelization]
+OpenMP Enabled: Yes
+Threads: 4
+
+[Model]
+Layer 1: Conv2d | in_ch=1 out_ch=16 kernel=3 stride=1 padding=1
+Layer 2: ReLU
+Layer 3: MaxPool2d | pool=2 stride=2
+Layer 4: Flatten
+Layer 5: Linear | in=3136 out=256
+Layer 6: ReLU
+Layer 7: Linear | in=256 out=10
+Layer 8: Softmax + CrossEntropy
+
+[Final Metrics]
+Completed Epochs: 3
+Final Avg Loss: 0.274
+Final Train Accuracy: 0.901
+Final Test Accuracy: 0.894
+
+[Epoch Logs]
+Epoch 0 | Avg Loss: 0.459 | Train Acc: 0.837
+  Forward: 106.074s | Backward: 135.726s | Update: 1.150s
+         Test Acc: 0.862
+Epoch 1 | Avg Loss: 0.314 | Train Acc: 0.888
+  Forward: 105.573s | Backward: 136.183s | Update: 1.148s
+         Test Acc: 0.878
+Epoch 2 | Avg Loss: 0.274 | Train Acc: 0.901
+  Forward: 105.805s | Backward: 135.602s | Update: 1.147s
+         Test Acc: 0.894
+
+============================================================
+Timestamp: 2026-02-15 16:01:26
+Optimization Title: Momentum(beta=0.9) + ReLU + MaxPool baseline
+
+[Training Time]
+Elapsed Seconds: 1236.305
+
+[Data]
+Input: 1x28x28 (flattened: 784)
+Classes: 10
+Train Samples: 60000
+Test Samples: 10000
+
+[Hyperparameters]
+Learning Rate: 0.010
+Momentum Beta: 0.900
+Batch Size: 64
+Epochs: 3
+Seed: 42
+
+[Parallelization]
+OpenMP Enabled: Yes
+Threads: 4
+
+[Model]
+Layer 1: Conv2d | in_ch=1 out_ch=16 kernel=3 stride=1 padding=1
+Layer 2: ReLU
+Layer 3: MaxPool2d | pool=2 stride=2
+Layer 4: Flatten
+Layer 5: Linear | in=3136 out=256
+Layer 6: ReLU
+Layer 7: Linear | in=256 out=10
+Layer 8: Softmax + CrossEntropy
+
+[Final Metrics]
+Completed Epochs: 3
+Final Avg Loss: 0.274
+Final Train Accuracy: 0.901
+Final Test Accuracy: 0.894
+
+[Epoch Logs]
+Epoch 0 | Avg Loss: 0.459 | Train Acc: 0.837
+  Forward: 117.953s | Backward: 179.476s | Update: 1.556s
+         Test Acc: 0.862
+Epoch 1 | Avg Loss: 0.314 | Train Acc: 0.888
+  Forward: 128.113s | Backward: 233.637s | Update: 1.721s
+         Test Acc: 0.878
+Epoch 2 | Avg Loss: 0.274 | Train Acc: 0.901
+  Forward: 132.368s | Backward: 254.281s | Update: 1.796s
+         Test Acc: 0.894
+
+============================================================
 Timestamp: 2026-02-15 15:16:17
 Optimization Title: Momentum(beta=0.9) + ReLU + MaxPool baseline
 

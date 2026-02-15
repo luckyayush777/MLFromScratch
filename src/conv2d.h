@@ -1,4 +1,5 @@
 #pragma once
+#include <iostream>
 #include <random>
 #include <vector>
 
@@ -19,6 +20,39 @@ struct EpochTrainingStats {
   double backwardSeconds = 0.0;
   double updateSeconds = 0.0;
   double testAcc = -1.0;
+};
+
+struct BatchTimingStats {
+  double conv2dFwdMs = 0.0;
+  double reluFwdMs = 0.0;
+  double poolFwdMs = 0.0;
+  double flattenFwdMs = 0.0;
+  double fc1FwdMs = 0.0;
+  double fc2FwdMs = 0.0;
+  double lossFwdMs = 0.0;
+
+  double softmaxBwdMs = 0.0;
+  double fc2BwdMs = 0.0;
+  double reluBwd1Ms = 0.0;
+  double fc1BwdMs = 0.0;
+  double flattenBwdMs = 0.0;
+  double poolBwdMs = 0.0;
+  double reluBwd2Ms = 0.0;
+  double conv2dBwdMs = 0.0;
+
+  double updateMs = 0.0;
+
+  void print() const {
+    std::cout << "  [Forward]  conv2d: " << conv2dFwdMs << "ms | relu: " << reluFwdMs
+              << "ms | pool: " << poolFwdMs << "ms | flatten: " << flattenFwdMs
+              << "ms | fc1: " << fc1FwdMs << "ms | fc2: " << fc2FwdMs
+              << "ms | loss: " << lossFwdMs << "ms\n";
+    std::cout << "  [Backward] softmax: " << softmaxBwdMs << "ms | fc2: " << fc2BwdMs
+              << "ms | relu1: " << reluBwd1Ms << "ms | fc1: " << fc1BwdMs
+              << "ms | flatten: " << flattenBwdMs << "ms | pool: " << poolBwdMs
+              << "ms | relu2: " << reluBwd2Ms << "ms | conv2d: " << conv2dBwdMs << "ms\n";
+    std::cout << "  [Update]   " << updateMs << "ms\n";
+  }
 };
 
 struct TrainingRunSummary {
@@ -83,7 +117,8 @@ struct Conv2d {
   double trainBatch(Layer &fc1, Layer &fc2, const Tensor &X_img,
                     const Tensor &y, size_t batchSize, double learningRate,
                     double beta, size_t &correct,
-                    double &fwdMs, double &bwdMs, double &updateMs);
+                    double &fwdMs, double &bwdMs, double &updateMs,
+                    BatchTimingStats &timing);
   double evaluateTestSet(Layer &fc1, Layer &fc2,
                          const MNISTDataset &testDataset);
   void trainMNIST(Layer &fc1, Layer &fc2, const MNISTDataset &dataset,
