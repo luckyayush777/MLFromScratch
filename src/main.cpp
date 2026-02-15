@@ -16,12 +16,15 @@
 #include <cmath>
 #include <iostream>
 #include <limits>
+#include <omp.h>
 #include <optional>
 #include <random>
 #include <stdexcept>
 #include <vector>
 
 int main() {
+  omp_set_num_threads(4);
+
   //config has defaults for hyperparameters 
   TrainingConfig config;
 

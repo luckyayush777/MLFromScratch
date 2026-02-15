@@ -1,5 +1,6 @@
 #pragma once
 
+#include <omp.h>
 #include <string>
 
 #include "conv2d.h"
@@ -55,6 +56,7 @@ private:
     config.batchSize = batchSize;
     config.epochs = epochs;
     config.seed = seed;
+    config.numThreads = omp_get_max_threads();
     return config;
   }
 

@@ -17,10 +17,13 @@ else()
     add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# Optional: OpenMP ()
-find_package(OpenMP)
+# OpenMP - required for parallelization
+find_package(OpenMP REQUIRED)
 if (OpenMP_CXX_FOUND)
-    message(STATUS "OpenMP found")
+    message(STATUS "OpenMP found: ${OpenMP_CXX_VERSION}")
+    message(STATUS "OpenMP flags: ${OpenMP_CXX_FLAGS}")
+else()
+    message(FATAL_ERROR "OpenMP not found! Please install OpenMP support.")
 endif()
 
 # Source files
@@ -31,16 +34,20 @@ add_executable(ml
     src/layer.cpp
 )
 
+# OpenMP test executable
+add_executable(test_openmp
+    src/test_openmp.cpp
+)
+
 # Include headers
 target_include_directories(ml
     PRIVATE
         ${PROJECT_SOURCE_DIR}/src
 )
 
-# Link OpenMP if available
-if (OpenMP_CXX_FOUND)
-    target_link_libraries(ml PRIVATE OpenMP::OpenMP_CXX)
-endif()
+# Link OpenMP
+target_link_libraries(ml PRIVATE OpenMP::OpenMP_CXX)
+target_link_libraries(test_openmp PRIVATE OpenMP::OpenMP_CXX)
 
 # Set working directory so relative dataset paths resolve correctly
 set_target_properties(ml PROPERTIES

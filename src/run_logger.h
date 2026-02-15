@@ -5,6 +5,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iterator>
+#include <omp.h>
 #include <sstream>
 #include <string>
 
@@ -29,6 +30,8 @@ struct TrainingRunLogConfig {
   size_t epochs = 0;
 
   unsigned int seed = 42;
+
+  int numThreads = 1;
 };
 
 inline std::string currentTimestamp() {
@@ -128,6 +131,10 @@ inline bool appendTrainingRunLog(const TrainingRunLogConfig &config,
   log << "Batch Size: " << config.batchSize << "\n";
   log << "Epochs: " << config.epochs << "\n";
   log << "Seed: " << config.seed << "\n";
+  log << "\n";
+  log << "[Parallelization]\n";
+  log << "OpenMP Enabled: Yes\n";
+  log << "Threads: " << config.numThreads << "\n";
   log << "\n";
   log << "[Model]\n";
   log << "Layer 1: Conv2d"

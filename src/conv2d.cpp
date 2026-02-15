@@ -4,6 +4,7 @@
 #include <chrono>
 #include <iostream>
 #include <limits>
+#include <omp.h>
 #include <stdexcept>
 
 Tensor Conv2d::conv2dForward(const Conv2d &convLayer,
@@ -398,70 +399,91 @@ void Conv2d::conv2dBackward(const Tensor &inputTensor,
   const size_t weightKernelSizePerOutput =
       inputChannels * kernelSize * kernelSize;
 
-  for (size_t batchIndex = 0; batchIndex < batchSize; ++batchIndex) {
-    const size_t inputBatchOffset = batchIndex * inputImageSize;
-    const size_t outputBatchOffset = batchIndex * outputImageSize;
+#pragma omp parallel
+  {
+    Tensor localDWeight({outChannels, inChannels, kernelSize, kernelSize});
+    Tensor localDBias({outChannels});
+    Tensor::zeroTensor(localDWeight);
+    Tensor::zeroTensor(localDBias);
 
-    for (size_t outputChannel = 0; outputChannel < outputChannels;
-         ++outputChannel) {
-      const size_t weightOutputOffset =
-          outputChannel * weightKernelSizePerOutput;
+    double *dWeightLocalData = localDWeight.raw();
+    double *dBiasLocalData = localDBias.raw();
 
-      for (size_t outputY = 0; outputY < outputHeight; ++outputY) {
-        for (size_t outputX = 0; outputX < outputWidth; ++outputX) {
-          const size_t dOutputIndex =
-              outputBatchOffset + outputChannel * outputHeight * outputWidth +
-              outputY * outputWidth + outputX;
+    const int batchSizeSigned = static_cast<int>(batchSize);
+#pragma omp for
+    for (int batchIdx = 0; batchIdx < batchSizeSigned; ++batchIdx) {
+      const size_t batchIndex = static_cast<size_t>(batchIdx);
+      const size_t inputBatchOffset = batchIndex * inputImageSize;
+      const size_t outputBatchOffset = batchIndex * outputImageSize;
 
-          const double gradOutputValue = dOutputData[dOutputIndex];
+      for (size_t outputChannel = 0; outputChannel < outputChannels;
+           ++outputChannel) {
+        const size_t weightOutputOffset =
+            outputChannel * weightKernelSizePerOutput;
 
-          // Bias gradient
-          dBiasData[outputChannel] += gradOutputValue;
+        for (size_t outputY = 0; outputY < outputHeight; ++outputY) {
+          for (size_t outputX = 0; outputX < outputWidth; ++outputX) {
+            const size_t dOutputIndex =
+                outputBatchOffset + outputChannel * outputHeight * outputWidth +
+                outputY * outputWidth + outputX;
 
-          for (size_t inputChannel = 0; inputChannel < inputChannels;
-               ++inputChannel) {
-            const size_t inputChannelOffset =
-                inputBatchOffset + inputChannel * inputHeight * inputWidth;
+            const double gradOutputValue = dOutputData[dOutputIndex];
 
-            const size_t weightInputOffset =
-                weightOutputOffset + inputChannel * kernelSize * kernelSize;
+            // Bias gradient (thread-local accumulation)
+            dBiasLocalData[outputChannel] += gradOutputValue;
 
-            for (size_t kernelY = 0; kernelY < kernelSize; ++kernelY) {
-              const int inputY =
-                  static_cast<int>(outputY * strideSize + kernelY) -
-                  static_cast<int>(paddingSize);
+            for (size_t inputChannel = 0; inputChannel < inputChannels;
+                 ++inputChannel) {
+              const size_t inputChannelOffset =
+                  inputBatchOffset + inputChannel * inputHeight * inputWidth;
 
-              if (inputY < 0 || inputY >= static_cast<int>(inputHeight))
-                continue;
+              const size_t weightInputOffset =
+                  weightOutputOffset + inputChannel * kernelSize * kernelSize;
 
-              for (size_t kernelX = 0; kernelX < kernelSize; ++kernelX) {
-                const int inputX =
-                    static_cast<int>(outputX * strideSize + kernelX) -
+              for (size_t kernelY = 0; kernelY < kernelSize; ++kernelY) {
+                const int inputY =
+                    static_cast<int>(outputY * strideSize + kernelY) -
                     static_cast<int>(paddingSize);
 
-                if (inputX < 0 || inputX >= static_cast<int>(inputWidth))
+                if (inputY < 0 || inputY >= static_cast<int>(inputHeight))
                   continue;
 
-                const size_t inputIndex =
-                    inputChannelOffset +
-                    static_cast<size_t>(inputY) * inputWidth +
-                    static_cast<size_t>(inputX);
+                for (size_t kernelX = 0; kernelX < kernelSize; ++kernelX) {
+                  const int inputX =
+                      static_cast<int>(outputX * strideSize + kernelX) -
+                      static_cast<int>(paddingSize);
 
-                const size_t weightIndex =
-                    weightInputOffset + kernelY * kernelSize + kernelX;
+                  if (inputX < 0 || inputX >= static_cast<int>(inputWidth))
+                    continue;
 
-                const double inputValue = inputData[inputIndex];
-                const double weightValue = weightData[weightIndex];
+                  const size_t inputIndex =
+                      inputChannelOffset +
+                      static_cast<size_t>(inputY) * inputWidth +
+                      static_cast<size_t>(inputX);
 
-                // Weight gradient
-                dWeightData[weightIndex] += inputValue * gradOutputValue;
+                  const size_t weightIndex =
+                      weightInputOffset + kernelY * kernelSize + kernelX;
 
-                // Input gradient
-                dInputData[inputIndex] += weightValue * gradOutputValue;
+                  const double inputValue = inputData[inputIndex];
+                  const double weightValue = weightData[weightIndex];
+
+                  // Weight gradient (thread-local accumulation)
+                  dWeightLocalData[weightIndex] += inputValue * gradOutputValue;
+                  dInputData[inputIndex] += weightValue * gradOutputValue;
+                }
               }
             }
           }
         }
+      }
+    }
+#pragma omp critical
+    {
+      for (size_t i = 0; i < dWeightTensor.noOfElements(); ++i) {
+        dWeightData[i] += dWeightLocalData[i];
+      }
+      for (size_t i = 0; i < dBiasTensor.noOfElements(); ++i) {
+        dBiasData[i] += dBiasLocalData[i];
       }
     }
   }
