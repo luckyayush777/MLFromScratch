@@ -24,10 +24,8 @@ Tensor Layer::forward(const Tensor &X) {
 }
 
 Tensor Layer::backward(const Tensor &dY) {
-  Tensor dX({X_cache.dim(0), X_cache.dim(1)});
   Tensor::linearBackward(X_cache, dY, dW, db);
-  dX = Tensor::matmul(dY, Tensor::transpose(W));
-  return dX;
+  return Tensor::matmul(dY, Tensor::transpose(W));
 }
 
 void Layer::step(double lr, double beta)

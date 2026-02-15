@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <iterator>
 #include <sstream>
 #include <string>
 
@@ -67,8 +68,8 @@ inline std::filesystem::path findProjectRootFromCurrentPath() {
   return {};
 }
 
-inline bool appendLogEntryToPath(const std::filesystem::path &outputPath,
-                                 const std::string &entry) {
+inline bool prependLogEntryToPath(const std::filesystem::path &outputPath,
+                                  const std::string &entry) {
   if (outputPath.empty()) {
     return false;
   }
@@ -77,12 +78,22 @@ inline bool appendLogEntryToPath(const std::filesystem::path &outputPath,
     std::filesystem::create_directories(outputPath.parent_path());
   }
 
-  std::ofstream out(outputPath, std::ios::app);
+  std::string previousContent;
+  {
+    std::ifstream in(outputPath, std::ios::binary);
+    if (in.is_open()) {
+      previousContent.assign(std::istreambuf_iterator<char>(in),
+                             std::istreambuf_iterator<char>());
+    }
+  }
+
+  std::ofstream out(outputPath, std::ios::binary | std::ios::trunc);
   if (!out.is_open()) {
     return false;
   }
 
   out << entry;
+  out << previousContent;
   return true;
 }
 
@@ -153,18 +164,16 @@ inline bool appendTrainingRunLog(const TrainingRunLogConfig &config,
   }
   log << "\n";
 
-  bool wroteConfiguredPath = appendLogEntryToPath(
-      std::filesystem::path(config.logFilePath), log.str());
-
   const std::filesystem::path projectRoot = findProjectRootFromCurrentPath();
-  bool wroteRootMirror = false;
-  if (!projectRoot.empty()) {
-    const std::filesystem::path rootMirrorPath =
-        projectRoot / "observations" / "training_runs.txt";
-    if (rootMirrorPath != std::filesystem::path(config.logFilePath)) {
-      wroteRootMirror = appendLogEntryToPath(rootMirrorPath, log.str());
+
+  std::filesystem::path resolvedLogPath(config.logFilePath);
+  if (resolvedLogPath.is_relative()) {
+    if (!projectRoot.empty()) {
+      resolvedLogPath = projectRoot / resolvedLogPath;
+    } else {
+      resolvedLogPath = std::filesystem::absolute(resolvedLogPath);
     }
   }
 
-  return wroteConfiguredPath || wroteRootMirror;
+  return prependLogEntryToPath(resolvedLogPath, log.str());
 }

@@ -1,0 +1,94 @@
+============================================================
+Timestamp: 2026-02-15 10:35:02
+Optimization Title: Momentum(beta=0.9) + ReLU + MaxPool baseline
+
+[Training Time]
+Elapsed Seconds: 879.734
+
+[Data]
+Input: 1x28x28 (flattened: 784)
+Classes: 10
+Train Samples: 60000
+Test Samples: 10000
+
+[Hyperparameters]
+Learning Rate: 0.010
+Momentum Beta: 0.900
+Batch Size: 32
+Epochs: 3
+Seed: 42
+
+[Model]
+Layer 1: Conv2d | in_ch=1 out_ch=16 kernel=3 stride=1 padding=1
+Layer 2: ReLU
+Layer 3: MaxPool2d | pool=2 stride=2
+Layer 4: Flatten
+Layer 5: Linear | in=3136 out=256
+Layer 6: ReLU
+Layer 7: Linear | in=256 out=10
+Layer 8: Softmax + CrossEntropy
+
+[Final Metrics]
+Completed Epochs: 3
+Final Avg Loss: 0.247
+Final Train Accuracy: 0.909
+Final Test Accuracy: 0.893
+
+[Epoch Logs]
+Epoch 0 | Avg Loss: 0.422 | Train Acc: 0.848
+  Forward: 109.654s | Backward: 159.514s | Update: 2.593s
+         Test Acc: 0.875
+Epoch 1 | Avg Loss: 0.288 | Train Acc: 0.895
+  Forward: 109.791s | Backward: 157.116s | Update: 2.639s
+         Test Acc: 0.891
+Epoch 2 | Avg Loss: 0.247 | Train Acc: 0.909
+  Forward: 112.689s | Backward: 167.197s | Update: 2.786s
+         Test Acc: 0.893
+
+============================================================
+Timestamp: 2026-02-15 09:47:22
+Optimization Title: Momentum(beta=0.9) + ReLU + MaxPool baseline
+
+[Training Time]
+Elapsed Seconds: 1017.202
+
+[Data]
+Input: 1x28x28 (flattened: 784)
+Classes: 10
+Train Samples: 60000
+Test Samples: 10000
+
+[Hyperparameters]
+Learning Rate: 0.010
+Momentum Beta: 0.900
+Batch Size: 32
+Epochs: 3
+Seed: 42
+
+[Model]
+Layer 1: Conv2d | in_ch=1 out_ch=16 kernel=3 stride=1 padding=1
+Layer 2: ReLU
+Layer 3: MaxPool2d | pool=2 stride=2
+Layer 4: Flatten
+Layer 5: Linear | in=3136 out=256
+Layer 6: ReLU
+Layer 7: Linear | in=256 out=10
+Layer 8: Softmax + CrossEntropy
+
+[Final Metrics]
+Completed Epochs: 3
+Final Avg Loss: 0.247
+Final Train Accuracy: 0.909
+Final Test Accuracy: 0.893
+
+[Epoch Logs]
+Epoch 0 | Avg Loss: 0.422 | Train Acc: 0.848
+  Forward: 112.653s | Backward: 174.665s | Update: 2.584s
+         Test Acc: 0.875
+Epoch 1 | Avg Loss: 0.288 | Train Acc: 0.895
+  Forward: 110.254s | Backward: 165.231s | Update: 2.558s
+         Test Acc: 0.891
+Epoch 2 | Avg Loss: 0.247 | Train Acc: 0.909
+  Forward: 130.325s | Backward: 251.456s | Update: 3.534s
+         Test Acc: 0.893
+

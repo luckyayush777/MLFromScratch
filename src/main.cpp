@@ -16,6 +16,7 @@
 #include <cmath>
 #include <iostream>
 #include <limits>
+#include <optional>
 #include <random>
 #include <stdexcept>
 #include <vector>
@@ -76,15 +77,17 @@ int main() {
   printShape("Input Image", xImg);
   // conv1.overfitSingleBatch(fc1, fc2, xImg, y, learningRate, 200);
 
-  TrainingRunLoggingSession loggingSession(
-      config.optimizationTitle, conv1, fc1, fc2, C,
-      dataset.labels.noOfElements(), testDataset.labels.noOfElements(),
-      config.learningRate, config.beta, config.batchSize, config.epochs,
-      config.seed);
+  std::optional<TrainingRunLoggingSession> logger;
+  if (config.enableRunLogging) {
+    logger.emplace(config.optimizationTitle, conv1, fc1, fc2, C,
+                   dataset.labels.noOfElements(), testDataset.labels.noOfElements(),
+                   config.learningRate, config.beta, config.batchSize, config.epochs,
+                   config.seed);
+  }
 
-    conv1.trainMNIST(fc1, fc2, dataset, testDataset, config.learningRate,
-             config.batchSize, config.epochs, config.beta,
-             &loggingSession.summary());
+  conv1.trainMNIST(fc1, fc2, dataset, testDataset, config.learningRate,
+                   config.batchSize, config.epochs, config.beta,
+                   logger ? &logger->summary() : nullptr);
 
   return 0;
 }

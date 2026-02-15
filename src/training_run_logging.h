@@ -25,7 +25,7 @@ public:
               appendTrainingRunLog(logConfig_, convLayer_, firstFcLayer_,
                                    secondFcLayer_, runSummary_, elapsedSeconds);
           if (logged) {
-            std::cout << "Training log appended to " << logConfig_.logFilePath
+            std::cout << "Training log updated at " << logConfig_.logFilePath
                       << "\n";
           } else {
             std::cerr << "Failed to write training log to "
