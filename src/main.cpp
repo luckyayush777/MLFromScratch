@@ -23,7 +23,7 @@
 #include <vector>
 
 int main() {
-  omp_set_num_threads(1);
+  omp_set_num_threads(4);
 
   //config has defaults for hyperparameters 
   TrainingConfig config;

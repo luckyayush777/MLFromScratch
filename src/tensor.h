@@ -239,29 +239,53 @@ public:
 
   static void linearBackward(const Tensor &X, const Tensor &dZ, Tensor &dw,
                              Tensor &db) {
+
+    // Safety checks (once, outside loops)
+    if (X.ndim() != 2 || dZ.ndim() != 2)
+      throw std::logic_error("linearBackward requires 2D tensors");
+
     size_t B = X.dim(0);
     size_t D = X.dim(1);
     size_t C = dZ.dim(1);
 
-    for (size_t i = 0; i < dw.noOfElements(); ++i) {
-      dw.flat(i) = 0.0;
-    }
-    for (size_t j = 0; j < db.noOfElements(); ++j) {
-      db.flat(j) = 0.0;
-    }
+    if (dZ.dim(0) != B)
+      throw std::invalid_argument("Batch size mismatch");
 
-    for (size_t i = 0; i < B; ++i) {
-      for (size_t j = 0; j < D; ++j) {
-        for (size_t k = 0; k < C; ++k) {
-          dw.at(j, k) += X.at(i, j) * dZ.at(i, k);
-        }
-      }
-    }
+    const double *Xdata = X.raw();
+    const double *dZdata = dZ.raw();
+    double *dwData = dw.raw();
+    double *dbData = db.raw();
 
-    for (size_t k = 0; k < C; ++k) {
+    //Compute dw = X^T · dZ
+#pragma omp parallel for schedule(static)
+    for (int j = 0; j < static_cast<int>(D); ++j) {
+
+      double *dwRow = &dwData[j * C];
+
+      // zero this row
+      for (size_t k = 0; k < C; ++k)
+        dwRow[k] = 0.0;
+
       for (size_t i = 0; i < B; ++i) {
-        db.flat(k) += dZ.at(i, k);
+
+        double x_val = Xdata[i * D + j];
+        const double *dzRow = &dZdata[i * C];
+
+        for (size_t k = 0; k < C; ++k)
+          dwRow[k] += x_val * dzRow[k];
       }
+    }
+
+    //Compute db
+#pragma omp parallel for schedule(static)
+    for (int k = 0; k < static_cast<int>(C); ++k) {
+
+      double sum = 0.0;
+
+      for (size_t i = 0; i < B; ++i)
+        sum += dZdata[i * C + k];
+
+      dbData[k] = sum;
     }
   }
 
