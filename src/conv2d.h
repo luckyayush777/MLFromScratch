@@ -108,7 +108,6 @@ struct Conv2d {
                                             const Tensor &targets);
   static double softmaxCrossEntropyLoss(const Tensor &logits,
                                         const Tensor &targets);
-  static Tensor reluBackward(const Tensor &Z, const Tensor &dA);
   static Tensor flattenBackward(const Tensor &dOut, const Tensor &inputShape);
   static Tensor maxPool2dBackward(const Tensor &dOut, const Tensor &input,
                                   size_t poolSize, size_t stride);

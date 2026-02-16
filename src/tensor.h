@@ -210,7 +210,7 @@ public:
   }
 
   static float crossEntropyLoss(const Tensor &predictions,
-                                 const Tensor &targets) {
+                                const Tensor &targets) {
     size_t B = predictions.dim(0);
     float loss = 0.0f;
 
@@ -255,7 +255,7 @@ public:
     float *dwData = dw.raw();
     float *dbData = db.raw();
 
-    //Compute dw = X^T · dZ
+    // Compute dw = X^T · dZ
 #pragma omp parallel for schedule(static)
     for (int j = 0; j < static_cast<int>(D); ++j) {
 
@@ -275,7 +275,7 @@ public:
       }
     }
 
-    //Compute db
+    // Compute db
 #pragma omp parallel for schedule(static)
     for (int k = 0; k < static_cast<int>(C); ++k) {
 
@@ -289,8 +289,13 @@ public:
   }
 
   static void relu(Tensor &T) {
-    for (size_t i = 0; i < T.noOfElements(); ++i)
-      T.flat(i) = std::fmax(0.0f, T.flat(i));
+    float *data = T.raw();
+    size_t N = T.noOfElements();
+
+    for (size_t i = 0; i < N; ++i) {
+      float v = data[i];
+      data[i] = v > 0.0f ? v : 0.0f;
+    }
   }
 
   static Tensor transpose(const Tensor &input) {

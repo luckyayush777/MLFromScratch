@@ -30,7 +30,6 @@ endif()
 add_executable(ml
     src/main.cpp
     src/conv2d.cpp
-    src/relu.cpp
     src/layer.cpp
 )
 

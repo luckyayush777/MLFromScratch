@@ -1,4 +1,64 @@
 ============================================================
+Timestamp: 2026-02-16 12:53:22
+Optimization Title: Momentum(beta=0.9) + ReLU + MaxPool baseline
+(this run onwards we are on float precision)
+[Training Time]
+Elapsed Seconds: 93.701
+
+[Data]
+Input: 1x28x28 (flattened: 784)
+Classes: 10
+Train Samples: 60000
+Test Samples: 10000
+
+[Hyperparameters]
+Learning Rate: 0.010
+Momentum Beta: 0.900
+Batch Size: 64
+Epochs: 3
+Seed: 42
+
+[Parallelization]
+OpenMP Enabled: Yes
+Threads: 4
+
+[Model]
+Layer 1: Conv2d | in_ch=1 out_ch=16 kernel=3 stride=1 padding=1
+Layer 2: ReLU
+Layer 3: MaxPool2d | pool=2 stride=2
+Layer 4: Flatten
+Layer 5: Linear | in=3136 out=256
+Layer 6: ReLU
+Layer 7: Linear | in=256 out=10
+Layer 8: Softmax + CrossEntropy
+
+[Final Metrics]
+Completed Epochs: 3
+Final Avg Loss: 0.274
+Final Train Accuracy: 0.901
+Final Test Accuracy: 0.893
+
+[Epoch Logs]
+Epoch 0 | Avg Loss: 0.459 | Train Acc: 0.836
+  Forward: 12.833s | Backward: 14.898s | Update: 1.072s
+  [Forward]  conv2d: 6.046s | relu: 4.053s | pool: 1.111s | flatten: 0.420s | fc1: 1.057s | fc2: 0.137s | loss: 0.009s
+  [Backward] softmax: 0.009s | fc2: 0.042s | relu1: 0.061s | fc1: 7.446s | flatten: 0.424s | pool: 2.989s | relu2: 1.586s | conv2d: 2.342s
+  [Update]   1.072s
+         Test Acc: 0.862
+Epoch 1 | Avg Loss: 0.315 | Train Acc: 0.888
+  Forward: 12.515s | Backward: 14.542s | Update: 1.070s
+  [Forward]  conv2d: 6.013s | relu: 4.070s | pool: 0.967s | flatten: 0.282s | fc1: 1.050s | fc2: 0.123s | loss: 0.009s
+  [Backward] softmax: 0.009s | fc2: 0.029s | relu1: 0.050s | fc1: 7.274s | flatten: 0.280s | pool: 2.956s | relu2: 1.623s | conv2d: 2.321s
+  [Update]   1.070s
+         Test Acc: 0.880
+Epoch 2 | Avg Loss: 0.274 | Train Acc: 0.901
+  Forward: 12.567s | Backward: 14.548s | Update: 1.074s
+  [Forward]  conv2d: 6.008s | relu: 4.130s | pool: 0.966s | flatten: 0.276s | fc1: 1.055s | fc2: 0.122s | loss: 0.009s
+  [Backward] softmax: 0.009s | fc2: 0.028s | relu1: 0.049s | fc1: 7.270s | flatten: 0.279s | pool: 2.928s | relu2: 1.635s | conv2d: 2.350s
+  [Update]   1.074s
+         Test Acc: 0.893
+
+============================================================
 Timestamp: 2026-02-16 11:44:03
 Optimization Title: Momentum(beta=0.9) + ReLU + MaxPool baseline
 

@@ -29,9 +29,6 @@ Tensor Conv2d::conv2dForward(const Conv2d &convLayer,
       (inputWidth + 2 * padding - kernelSize) / stride + 1;
 
   Tensor outputTensor({batchSize, outputChannels, outputHeight, outputWidth});
-  
-
-                            
 
   // Raw data pointers
   const float *inputData = inputTensor.raw();
@@ -119,7 +116,7 @@ Tensor Conv2d::conv2dForward(const Conv2d &convLayer,
 }
 
 float Conv2d::getPaddedInput(const Tensor &X, size_t batch, size_t channel,
-                              int h, int w) const {
+                             int h, int w) const {
   const size_t height = X.dim(2);
   const size_t width = X.dim(3);
 
@@ -281,15 +278,17 @@ void Conv2d::testSoftmaxCrossEntropyBackwardPerfectPrediction() {
   std::cout << "PASSED: softmaxCrossEntropyBackward perfect prediction\n";
 }
 
-Tensor Conv2d::reluBackward(const Tensor &Z, const Tensor &dA) {
-  if (Z.getShape() != dA.getShape()) {
-    throw std::runtime_error("Dimension mismatch in reluBackward");
-  }
-
+Tensor reluBackward(const Tensor &Z, const Tensor &dA) {
+  size_t N = Z.noOfElements();
   Tensor dZ(Z.getShape());
-  for (size_t i = 0; i < Z.noOfElements(); ++i) {
-    dZ.flat(i) = (Z.flat(i) > 0.0f) ? dA.flat(i) : 0.0f;
-  }
+
+  const float *z = Z.raw();
+  const float *da = dA.raw();
+  float *dz = dZ.raw();
+
+  for (size_t i = 0; i < N; ++i)
+    dz[i] = z[i] > 0.0f ? da[i] : 0.0f;
+
   return dZ;
 }
 
@@ -580,23 +579,36 @@ double Conv2d::trainBatch(Layer &fc1, Layer &fc2, const Tensor &X_img,
   updateMs += std::chrono::duration<double, std::milli>(t16 - t15).count();
 
   // Detailed timing
-  timing.conv2dFwdMs += std::chrono::duration<double, std::milli>(t1 - t0).count();
-  timing.reluFwdMs += std::chrono::duration<double, std::milli>(t2 - t1).count();
-  timing.poolFwdMs += std::chrono::duration<double, std::milli>(t3 - t2).count();
-  timing.flattenFwdMs += std::chrono::duration<double, std::milli>(t4 - t3).count();
+  timing.conv2dFwdMs +=
+      std::chrono::duration<double, std::milli>(t1 - t0).count();
+  timing.reluFwdMs +=
+      std::chrono::duration<double, std::milli>(t2 - t1).count();
+  timing.poolFwdMs +=
+      std::chrono::duration<double, std::milli>(t3 - t2).count();
+  timing.flattenFwdMs +=
+      std::chrono::duration<double, std::milli>(t4 - t3).count();
   timing.fc1FwdMs += std::chrono::duration<double, std::milli>(t5 - t4).count();
   timing.fc2FwdMs += std::chrono::duration<double, std::milli>(t6 - t5).count();
-  timing.lossFwdMs += std::chrono::duration<double, std::milli>(t7 - t6).count();
+  timing.lossFwdMs +=
+      std::chrono::duration<double, std::milli>(t7 - t6).count();
 
-  timing.softmaxBwdMs += std::chrono::duration<double, std::milli>(t8 - t7).count();
+  timing.softmaxBwdMs +=
+      std::chrono::duration<double, std::milli>(t8 - t7).count();
   timing.fc2BwdMs += std::chrono::duration<double, std::milli>(t9 - t8).count();
-  timing.reluBwd1Ms += std::chrono::duration<double, std::milli>(t10 - t9).count();
-  timing.fc1BwdMs += std::chrono::duration<double, std::milli>(t11 - t10).count();
-  timing.flattenBwdMs += std::chrono::duration<double, std::milli>(t12 - t11).count();
-  timing.poolBwdMs += std::chrono::duration<double, std::milli>(t13 - t12).count();
-  timing.reluBwd2Ms += std::chrono::duration<double, std::milli>(t14 - t13).count();
-  timing.conv2dBwdMs += std::chrono::duration<double, std::milli>(t15 - t14).count();
-  timing.updateMs += std::chrono::duration<double, std::milli>(t16 - t15).count();
+  timing.reluBwd1Ms +=
+      std::chrono::duration<double, std::milli>(t10 - t9).count();
+  timing.fc1BwdMs +=
+      std::chrono::duration<double, std::milli>(t11 - t10).count();
+  timing.flattenBwdMs +=
+      std::chrono::duration<double, std::milli>(t12 - t11).count();
+  timing.poolBwdMs +=
+      std::chrono::duration<double, std::milli>(t13 - t12).count();
+  timing.reluBwd2Ms +=
+      std::chrono::duration<double, std::milli>(t14 - t13).count();
+  timing.conv2dBwdMs +=
+      std::chrono::duration<double, std::milli>(t15 - t14).count();
+  timing.updateMs +=
+      std::chrono::duration<double, std::milli>(t16 - t15).count();
 
   return loss;
 }
@@ -670,8 +682,9 @@ void Conv2d::trainMNIST(Layer &fc1, Layer &fc2, const MNISTDataset &dataset,
       Tensor X_img = reshapeToImage(X, batchSize);
 
       size_t batchCorrect = 0;
-      double loss = trainBatch(fc1, fc2, X_img, y, batchSize, learningRate,
-                               beta, batchCorrect, fwdMs, bwdMs, updateMs, timing);
+      double loss =
+          trainBatch(fc1, fc2, X_img, y, batchSize, learningRate, beta,
+                     batchCorrect, fwdMs, bwdMs, updateMs, timing);
 
       epochLoss += loss;
       totalCorrect += batchCorrect;
@@ -749,13 +762,13 @@ void Conv2d::overfitSingleBatch(Layer &fc1, Layer &fc2, const Tensor &X_img,
 
     // BACKWARD
     Tensor dA_fc1 = fc2.backward(dLogits);
-    Tensor dZ_fc1 = Conv2d::reluBackward(Z_fc1, dA_fc1);
+    Tensor dZ_fc1 = reluBackward(Z_fc1, dA_fc1);
 
     Tensor dZ_flat = fc1.backward(dZ_fc1);
     Tensor dZ_pool = Conv2d::flattenBackward(dZ_flat, Z_pool);
 
     Tensor dA_conv = Conv2d::maxPool2dBackward(dZ_pool, A_conv, 2, 2);
-    Tensor dZ_conv = Conv2d::reluBackward(Z_conv, dA_conv);
+    Tensor dZ_conv = reluBackward(Z_conv, dA_conv);
 
     Tensor dX_img({B, 1, 28, 28});
     Tensor dW_conv(
