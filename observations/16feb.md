@@ -1,0 +1,1 @@
+Allright so changing the order of the inner loops in the matmul around and parallelizing halved my training time. 
