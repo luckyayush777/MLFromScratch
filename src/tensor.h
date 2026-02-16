@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <numeric>
+#include <omp.h>
 #include <stdexcept>
 #include <vector>
 
@@ -117,30 +118,39 @@ public:
   }
 
   size_t ndim() const { return shape.size(); }
-
   static Tensor matmul(const Tensor &A, const Tensor &B) {
     if (A.ndim() != 2 || B.ndim() != 2) {
       throw std::logic_error("matmul requires 2D tensors");
     }
+    if (A.dim(1) != B.dim(0)) {
+      throw std::invalid_argument(
+          "matmul shape mismatch: A columns must equal B rows");
+    }
 
     size_t m = A.dim(0);
     size_t k = A.dim(1);
-    size_t k2 = B.dim(0);
     size_t n = B.dim(1);
-
-    if (k != k2) {
-      throw std::invalid_argument("matmul shape mismatch");
-    }
 
     Tensor out({m, n});
 
-    for (size_t i = 0; i < m; ++i) {
-      for (size_t j = 0; j < n; ++j) {
-        double sum = 0.0;
-        for (size_t t = 0; t < k; ++t) {
-          sum += A.at(i, t) * B.at(t, j);
-        }
-        out.at(i, j) = sum;
+    const double *Adata = A.raw();
+    const double *Bdata = B.raw();
+    double *outData = out.raw();
+
+#pragma omp parallel for schedule(static)
+    for (int i = 0; i < static_cast<int>(m); ++i) {
+
+      double *outRow = &outData[i * n];
+
+      for (size_t j = 0; j < n; ++j)
+        outRow[j] = 0.0;
+
+      for (size_t t = 0; t < k; ++t) {
+        double a_val = Adata[i * k + t];
+        const double *brow = &Bdata[t * n];
+
+        for (size_t j = 0; j < n; ++j)
+          outRow[j] += a_val * brow[j];
       }
     }
 
