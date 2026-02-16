@@ -11,7 +11,7 @@ class Tensor {
 private:
   std::vector<size_t> shape;
   size_t totalSize = 0;
-  std::vector<double> data;
+  std::vector<float> data;
 
 public:
   Tensor() = default;
@@ -27,31 +27,31 @@ public:
       }
       totalSize *= d;
     }
-    data.resize(totalSize, 0.0);
+    data.resize(totalSize, 0.0f);
   }
   const std::vector<size_t> &getShape() const { return shape; }
 
   size_t noOfElements() const { return totalSize; }
 
-  double *raw() { return data.data(); }
+  float *raw() { return data.data(); }
 
-  const double *raw() const { return data.data(); }
+  const float *raw() const { return data.data(); }
 
-  double &flat(size_t i) {
+  float &flat(size_t i) {
     if (i >= totalSize) {
       throw std::out_of_range("Tensor flat index out of range");
     }
     return data[i];
   }
 
-  const double &flat(size_t i) const {
+  const float &flat(size_t i) const {
     if (i >= totalSize) {
       throw std::out_of_range("Tensor flat index out of range");
     }
     return data[i];
   }
 
-  double &at(size_t i, size_t j) {
+  float &at(size_t i, size_t j) {
     if (shape.size() != 2) {
       throw std::logic_error("Tensor is not 2D");
     }
@@ -62,7 +62,7 @@ public:
     return data[i * cols + j];
   }
 
-  const double &at(size_t i, size_t j) const {
+  const float &at(size_t i, size_t j) const {
     if (shape.size() != 2) {
       throw std::logic_error("Tensor is not 2D");
     }
@@ -74,7 +74,7 @@ public:
   }
 
   // tensor indexing for 4D tensors (for conv2d)
-  double &at(size_t i, size_t j, size_t k, size_t l) {
+  float &at(size_t i, size_t j, size_t k, size_t l) {
     if (shape.size() != 4) {
       throw std::logic_error("Tensor is not 4D");
     }
@@ -92,7 +92,7 @@ public:
     return data[index];
   }
 
-  const double &at(size_t i, size_t j, size_t k, size_t l) const {
+  const float &at(size_t i, size_t j, size_t k, size_t l) const {
     if (shape.size() != 4) {
       throw std::logic_error("Tensor is not 4D");
     }
@@ -133,21 +133,21 @@ public:
 
     Tensor out({m, n});
 
-    const double *Adata = A.raw();
-    const double *Bdata = B.raw();
-    double *outData = out.raw();
+    const float *Adata = A.raw();
+    const float *Bdata = B.raw();
+    float *outData = out.raw();
 
 #pragma omp parallel for schedule(static)
     for (int i = 0; i < static_cast<int>(m); ++i) {
 
-      double *outRow = &outData[i * n];
+      float *outRow = &outData[i * n];
 
       for (size_t j = 0; j < n; ++j)
-        outRow[j] = 0.0;
+        outRow[j] = 0.0f;
 
       for (size_t t = 0; t < k; ++t) {
-        double a_val = Adata[i * k + t];
-        const double *brow = &Bdata[t * n];
+        float a_val = Adata[i * k + t];
+        const float *brow = &Bdata[t * n];
 
         for (size_t j = 0; j < n; ++j)
           outRow[j] += a_val * brow[j];
@@ -175,7 +175,7 @@ public:
   }
   static void zeroTensor(Tensor &t) {
     for (size_t i = 0; i < t.noOfElements(); ++i) {
-      t.flat(i) = 0.0;
+      t.flat(i) = 0.0f;
     }
   }
 
@@ -193,11 +193,11 @@ public:
 
     for (size_t i = 0; i < rows; ++i) {
       // subtract max for numerical stability
-      double maxVal = Z.at(i, 0);
+      float maxVal = Z.at(i, 0);
       for (size_t j = 0; j < cols; ++j) {
-        maxVal = std::max(maxVal, Z.at(i, j));
+        maxVal = std::fmax(maxVal, Z.at(i, j));
       }
-      double sumExp = 0.0;
+      float sumExp = 0.0f;
       for (size_t j = 0; j < cols; ++j) {
         Z.at(i, j) = std::exp(Z.at(i, j) - maxVal);
         sumExp += Z.at(i, j);
@@ -209,15 +209,14 @@ public:
     }
   }
 
-  static double crossEntropyLoss(const Tensor &predictions,
+  static float crossEntropyLoss(const Tensor &predictions,
                                  const Tensor &targets) {
     size_t B = predictions.dim(0);
-    double loss = 0.0;
+    float loss = 0.0f;
 
     for (size_t i = 0; i < B; i++) {
       size_t y = static_cast<size_t>(targets.flat(i));
-      loss -= std::log(predictions.at(i, y) +
-                       1e-15); // add small value to avoid log(0)
+      loss -= std::log(std::fmax(predictions.at(i, y), 1e-7f));
     }
     return loss / B;
   }
@@ -229,7 +228,7 @@ public:
 
     for (size_t i = 0; i < B; i++) {
       size_t y = static_cast<size_t>(labels.flat(i));
-      predictions.at(i, y) -= 1.0;
+      predictions.at(i, y) -= 1.0f;
     }
     // average over batch
     for (size_t i = 0; i < predictions.noOfElements(); ++i) {
@@ -251,25 +250,25 @@ public:
     if (dZ.dim(0) != B)
       throw std::invalid_argument("Batch size mismatch");
 
-    const double *Xdata = X.raw();
-    const double *dZdata = dZ.raw();
-    double *dwData = dw.raw();
-    double *dbData = db.raw();
+    const float *Xdata = X.raw();
+    const float *dZdata = dZ.raw();
+    float *dwData = dw.raw();
+    float *dbData = db.raw();
 
     //Compute dw = X^T · dZ
 #pragma omp parallel for schedule(static)
     for (int j = 0; j < static_cast<int>(D); ++j) {
 
-      double *dwRow = &dwData[j * C];
+      float *dwRow = &dwData[j * C];
 
       // zero this row
       for (size_t k = 0; k < C; ++k)
-        dwRow[k] = 0.0;
+        dwRow[k] = 0.0f;
 
       for (size_t i = 0; i < B; ++i) {
 
-        double x_val = Xdata[i * D + j];
-        const double *dzRow = &dZdata[i * C];
+        float x_val = Xdata[i * D + j];
+        const float *dzRow = &dZdata[i * C];
 
         for (size_t k = 0; k < C; ++k)
           dwRow[k] += x_val * dzRow[k];
@@ -280,7 +279,7 @@ public:
 #pragma omp parallel for schedule(static)
     for (int k = 0; k < static_cast<int>(C); ++k) {
 
-      double sum = 0.0;
+      float sum = 0.0f;
 
       for (size_t i = 0; i < B; ++i)
         sum += dZdata[i * C + k];
@@ -291,7 +290,7 @@ public:
 
   static void relu(Tensor &T) {
     for (size_t i = 0; i < T.noOfElements(); ++i)
-      T.flat(i) = std::max(0.0, T.flat(i));
+      T.flat(i) = std::fmax(0.0f, T.flat(i));
   }
 
   static Tensor transpose(const Tensor &input) {

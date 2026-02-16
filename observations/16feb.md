@@ -1,1 +1,2 @@
-Allright so changing the order of the inner loops in the matmul around and parallelizing halved my training time. 
+Allright so changing the order of the inner loops in the matmul around and parallelizing halved my training time. I managed to get it down from some 15 odd minutes to around 1.5 minutes by parallelizing the matrix multiply and changing the order around.
+Now I am realizing I dont even need double for this sort of thing, even float will suffice. 

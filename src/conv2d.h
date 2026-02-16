@@ -88,16 +88,16 @@ struct Conv2d {
     double std = std::sqrt(2.0 / (inCh * k * k));
     std::normal_distribution<double> dist(0.0, std);
     for (size_t i = 0; i < W.noOfElements(); ++i)
-      W.flat(i) = dist(rng);
+      W.flat(i) = static_cast<float>(dist(rng));
     for (size_t i = 0; i < b.noOfElements(); ++i)
-      b.flat(i) = 0.0;
+      b.flat(i) = 0.0f;
     for (size_t i = 0; i < vW.noOfElements(); ++i)
-      vW.flat(i) = 0.0;
+      vW.flat(i) = 0.0f;
     for (size_t i = 0; i < vb.noOfElements(); ++i)
-      vb.flat(i) = 0.0;
+      vb.flat(i) = 0.0f;
   }
 
-  double getPaddedInput(const Tensor &X, size_t batch, size_t channel, int h,
+  float getPaddedInput(const Tensor &X, size_t batch, size_t channel, int h,
                         int w) const;
 
   static Tensor conv2dForward(const Conv2d &conv, const Tensor &input);

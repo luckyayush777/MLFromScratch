@@ -34,10 +34,10 @@ Tensor Conv2d::conv2dForward(const Conv2d &convLayer,
                             
 
   // Raw data pointers
-  const double *inputData = inputTensor.raw();
-  const double *weightData = convLayer.W.raw();
-  const double *biasData = convLayer.b.raw();
-  double *outputData = outputTensor.raw();
+  const float *inputData = inputTensor.raw();
+  const float *weightData = convLayer.W.raw();
+  const float *biasData = convLayer.b.raw();
+  float *outputData = outputTensor.raw();
 
   // Precomputed strides (for index calculation)
   const size_t inputImageSize = inputChannels * inputHeight * inputWidth;
@@ -60,7 +60,7 @@ Tensor Conv2d::conv2dForward(const Conv2d &convLayer,
       for (size_t outputY = 0; outputY < outputHeight; ++outputY) {
         for (size_t outputX = 0; outputX < outputWidth; ++outputX) {
 
-          double accumulatedSum = biasData[outputChannel];
+          float accumulatedSum = biasData[outputChannel];
 
           // Loop over input channels
           for (size_t inputChannel = 0; inputChannel < inputChannels;
@@ -118,13 +118,13 @@ Tensor Conv2d::conv2dForward(const Conv2d &convLayer,
   return outputTensor;
 }
 
-double Conv2d::getPaddedInput(const Tensor &X, size_t batch, size_t channel,
+float Conv2d::getPaddedInput(const Tensor &X, size_t batch, size_t channel,
                               int h, int w) const {
   const size_t height = X.dim(2);
   const size_t width = X.dim(3);
 
   if (h < 0 || w < 0 || h >= (int)height || w >= (int)width) {
-    return 0.0; // zero padding
+    return 0.0f; // zero padding
   }
   return X.at(batch, channel, static_cast<size_t>(h), static_cast<size_t>(w));
 }
@@ -167,7 +167,7 @@ Tensor Conv2d::maxPool2dForward(const Tensor &input, size_t poolSize,
       for (size_t oy = 0; oy < outHeight; ++oy) {
         for (size_t ox = 0; ox < outWidth; ++ox) {
 
-          double maxVal = -std::numeric_limits<double>::infinity();
+          float maxVal = -std::numeric_limits<float>::infinity();
 
           for (size_t py = 0; py < poolSize; ++py) {
             for (size_t px = 0; px < poolSize; ++px) {
@@ -175,7 +175,7 @@ Tensor Conv2d::maxPool2dForward(const Tensor &input, size_t poolSize,
               size_t inY = oy * stride + py;
               size_t inX = ox * stride + px;
 
-              double val = input.at(b, c, inY, inX);
+              float val = input.at(b, c, inY, inX);
               if (val > maxVal)
                 maxVal = val;
             }
@@ -199,11 +199,11 @@ Tensor Conv2d::softmaxCrossEntropyBackward(const Tensor &logits,
 
   // Softmax
   for (size_t i = 0; i < B; ++i) {
-    double maxLogit = -std::numeric_limits<double>::infinity();
+    float maxLogit = -std::numeric_limits<float>::infinity();
     for (size_t j = 0; j < C; ++j)
-      maxLogit = std::max(maxLogit, logits.at(i, j));
+      maxLogit = std::fmax(maxLogit, logits.at(i, j));
 
-    double sumExp = 0.0;
+    float sumExp = 0.0f;
     for (size_t j = 0; j < C; ++j) {
       probs.at(i, j) = std::exp(logits.at(i, j) - maxLogit);
       sumExp += probs.at(i, j);
@@ -219,13 +219,13 @@ Tensor Conv2d::softmaxCrossEntropyBackward(const Tensor &logits,
     if (y >= C) {
       throw std::runtime_error("Target class index out of bounds");
     }
-    probs.at(i, y) -= 1.0;
+    probs.at(i, y) -= 1.0f;
   }
 
   // Normalize by batch
   for (size_t i = 0; i < B; ++i)
     for (size_t j = 0; j < C; ++j)
-      probs.at(i, j) /= static_cast<double>(B);
+      probs.at(i, j) /= static_cast<float>(B);
 
   return probs;
 }
@@ -239,11 +239,11 @@ double Conv2d::softmaxCrossEntropyLoss(const Tensor &logits,
 
   for (size_t i = 0; i < B; ++i) {
     // find max logit for numerical stability
-    double maxLogit = -std::numeric_limits<double>::infinity();
+    float maxLogit = -std::numeric_limits<float>::infinity();
     for (size_t j = 0; j < C; ++j) {
-      maxLogit = std::max(maxLogit, logits.at(i, j));
+      maxLogit = std::fmax(maxLogit, logits.at(i, j));
     }
-    double sumExp = 0.0;
+    float sumExp = 0.0f;
     for (size_t j = 0; j < C; ++j) {
       sumExp += std::exp(logits.at(i, j) - maxLogit);
     }
@@ -258,19 +258,19 @@ double Conv2d::softmaxCrossEntropyLoss(const Tensor &logits,
 
 void Conv2d::testSoftmaxCrossEntropyBackwardPerfectPrediction() {
   Tensor logits({1, 3});
-  logits.at(0, 0) = 10.0;
-  logits.at(0, 1) = -10.0;
-  logits.at(0, 2) = -10.0;
+  logits.at(0, 0) = 10.0f;
+  logits.at(0, 1) = -10.0f;
+  logits.at(0, 2) = -10.0f;
 
   Tensor targets({1});
   targets.flat(0) = 0; // correct class
 
   Tensor grad = Conv2d::softmaxCrossEntropyBackward(logits, targets);
 
-  const double eps = 1e-6;
+  const float eps = 1e-6f;
 
   for (size_t j = 0; j < 3; ++j) {
-    double g = grad.at(0, j);
+    float g = grad.at(0, j);
     if (std::abs(g) > eps) {
       std::cerr << "FAILED: expected gradient 0, got " << g << " at class " << j
                 << std::endl;
@@ -288,7 +288,7 @@ Tensor Conv2d::reluBackward(const Tensor &Z, const Tensor &dA) {
 
   Tensor dZ(Z.getShape());
   for (size_t i = 0; i < Z.noOfElements(); ++i) {
-    dZ.flat(i) = (Z.flat(i) > 0.0) ? dA.flat(i) : 0.0;
+    dZ.flat(i) = (Z.flat(i) > 0.0f) ? dA.flat(i) : 0.0f;
   }
   return dZ;
 }
@@ -339,7 +339,7 @@ Tensor Conv2d::maxPool2dBackward(const Tensor &dOut, const Tensor &input,
       for (size_t oy = 0; oy < outHeight; ++oy) {
         for (size_t ox = 0; ox < outWidth; ++ox) {
 
-          double maxVal = -std::numeric_limits<double>::infinity();
+          float maxVal = -std::numeric_limits<float>::infinity();
           size_t maxY = 0, maxX = 0;
 
           for (size_t py = 0; py < poolSize; ++py) {
@@ -348,7 +348,7 @@ Tensor Conv2d::maxPool2dBackward(const Tensor &dOut, const Tensor &input,
               size_t inY = oy * stride + py;
               size_t inX = ox * stride + px;
 
-              double val = input.at(b, c, inY, inX);
+              float val = input.at(b, c, inY, inX);
               if (val > maxVal) {
                 maxVal = val;
                 maxY = inY;
@@ -388,13 +388,13 @@ void Conv2d::conv2dBackward(const Tensor &inputTensor,
   Tensor::zeroTensor(dBiasTensor);
 
   // Raw pointers for faster access
-  const double *inputData = inputTensor.raw();
-  const double *dOutputData = dOutputTensor.raw();
-  const double *weightData = W.raw();
+  const float *inputData = inputTensor.raw();
+  const float *dOutputData = dOutputTensor.raw();
+  const float *weightData = W.raw();
 
-  double *dInputData = dInputTensor.raw();
-  double *dWeightData = dWeightTensor.raw();
-  double *dBiasData = dBiasTensor.raw();
+  float *dInputData = dInputTensor.raw();
+  float *dWeightData = dWeightTensor.raw();
+  float *dBiasData = dBiasTensor.raw();
 
   // Precomputed sizes
   const size_t inputImageSize = inputChannels * inputHeight * inputWidth;
@@ -409,8 +409,8 @@ void Conv2d::conv2dBackward(const Tensor &inputTensor,
     Tensor::zeroTensor(localDWeight);
     Tensor::zeroTensor(localDBias);
 
-    double *dWeightLocalData = localDWeight.raw();
-    double *dBiasLocalData = localDBias.raw();
+    float *dWeightLocalData = localDWeight.raw();
+    float *dBiasLocalData = localDBias.raw();
 
     const int batchSizeSigned = static_cast<int>(batchSize);
 #pragma omp for
@@ -430,7 +430,7 @@ void Conv2d::conv2dBackward(const Tensor &inputTensor,
                 outputBatchOffset + outputChannel * outputHeight * outputWidth +
                 outputY * outputWidth + outputX;
 
-            const double gradOutputValue = dOutputData[dOutputIndex];
+            const float gradOutputValue = dOutputData[dOutputIndex];
 
             // Bias gradient (thread-local accumulation)
             dBiasLocalData[outputChannel] += gradOutputValue;
@@ -467,8 +467,8 @@ void Conv2d::conv2dBackward(const Tensor &inputTensor,
                   const size_t weightIndex =
                       weightInputOffset + kernelY * kernelSize + kernelX;
 
-                  const double inputValue = inputData[inputIndex];
-                  const double weightValue = weightData[weightIndex];
+                  const float inputValue = inputData[inputIndex];
+                  const float weightValue = weightData[weightIndex];
 
                   // Weight gradient (thread-local accumulation)
                   dWeightLocalData[weightIndex] += inputValue * gradOutputValue;
@@ -564,13 +564,13 @@ double Conv2d::trainBatch(Layer &fc1, Layer &fc2, const Tensor &X_img,
   fc2.step(learningRate, beta);
 
   for (size_t i = 0; i < W.noOfElements(); ++i) {
-    vW.flat(i) = beta * vW.flat(i) + dW_conv.flat(i);
-    W.flat(i) -= learningRate * vW.flat(i);
+    vW.flat(i) = static_cast<float>(beta * vW.flat(i) + dW_conv.flat(i));
+    W.flat(i) -= static_cast<float>(learningRate * vW.flat(i));
   }
 
   for (size_t i = 0; i < b.noOfElements(); ++i) {
-    vb.flat(i) = beta * vb.flat(i) + db_conv.flat(i);
-    b.flat(i) -= learningRate * vb.flat(i);
+    vb.flat(i) = static_cast<float>(beta * vb.flat(i) + db_conv.flat(i));
+    b.flat(i) -= static_cast<float>(learningRate * vb.flat(i));
   }
   auto t16 = clock::now();
 
@@ -769,10 +769,10 @@ void Conv2d::overfitSingleBatch(Layer &fc1, Layer &fc2, const Tensor &X_img,
     fc2.step(learningRate, 0.0);
 
     for (size_t i = 0; i < W.noOfElements(); ++i)
-      W.flat(i) -= learningRate * dW_conv.flat(i);
+      W.flat(i) -= static_cast<float>(learningRate * dW_conv.flat(i));
 
     for (size_t i = 0; i < b.noOfElements(); ++i)
-      b.flat(i) -= learningRate * db_conv.flat(i);
+      b.flat(i) -= static_cast<float>(learningRate * db_conv.flat(i));
 
     // LOGGING
     if (step % 25 == 0) {
@@ -784,10 +784,10 @@ void Conv2d::overfitSingleBatch(Layer &fc1, Layer &fc2, const Tensor &X_img,
 }
 size_t Conv2d::argmaxRow(const Tensor &logits, size_t row) {
   size_t best = 0;
-  double bestVal = logits.at(row, 0);
+  float bestVal = logits.at(row, 0);
 
   for (size_t j = 1; j < logits.dim(1); ++j) {
-    double val = logits.at(row, j);
+    float val = logits.at(row, j);
     if (val > bestVal) {
       bestVal = val;
       best = j;

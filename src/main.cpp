@@ -71,7 +71,7 @@ int main() {
     for (size_t h = 0; h < 28; ++h) {
       for (size_t w = 0; w < 28; ++w) {
 
-        double pixel = X.at(b, h * 28 + w);
+        float pixel = X.at(b, h * 28 + w);
 
         xImg.at(b, 0, h, w) = pixel;
       }

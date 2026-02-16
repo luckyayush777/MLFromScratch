@@ -71,7 +71,7 @@ inline void readMnistImages(std::ifstream &img, Tensor &images, size_t numImages
       if (!img.read(reinterpret_cast<char *>(&pixel), 1)) {
         throw std::runtime_error("Unexpected end of image file");
       }
-      images.at(i, j) = static_cast<double>(pixel) / 255.0;
+      images.at(i, j) = static_cast<float>(pixel) / 255.0f;
     }
   }
 }
@@ -82,7 +82,7 @@ inline void readMnistLabels(std::ifstream &lbl, Tensor &labels, size_t numLabels
     if (!lbl.read(reinterpret_cast<char *>(&y), 1)) {
       throw std::runtime_error("Unexpected end of label file");
     }
-    labels.flat(i) = static_cast<double>(y);
+    labels.flat(i) = static_cast<float>(y);
   }
 }
 
